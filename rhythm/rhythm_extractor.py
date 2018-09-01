@@ -31,7 +31,7 @@ def extract_rhythm_to_text(abc_file):
 
         beat_pattern = ''
         for n2 in notes_list:
-            num_notes = int(n2.duration.quarterLength / 0.25)   # time step is assumed to be 16th
+            num_notes = int(n2.duration.quarterLength / 0.25)   # time step is assumed to be 16th for now
             if type(n2) == note.Note:
                 beat_pattern += '-' + '>' * (num_notes - 1)
             else:
