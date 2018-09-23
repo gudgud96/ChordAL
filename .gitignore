@@ -4,3 +4,4 @@ dataset/*
 *.abc
 *.txt
 *.log
+.idea
