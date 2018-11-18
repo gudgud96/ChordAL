@@ -22,6 +22,7 @@ from music21 import *
 import numpy as np
 import os.path
 import random
+import chord.generator.chord_generator as chord_generator
 
 # Configurable variables
 BEATS_FILE = "beats_nottingham_training.txt"
@@ -178,29 +179,44 @@ class RhythmGenerator:
         cur_quarter_len = 0
         note_stream = stream.Stream()
 
+        pitch = pitch_pattern.pop(0) if pitch_pattern else None
+
+        def create_note(note_stream, cur_quarter_len, pitch, pitch_pattern):
+            note_stream, cur_quarter_len = self.create_note_to_stream(
+                    note_stream, cur_quarter_len, is_note='note', pitch=pitch)
+            next_pitch = pitch_pattern.pop(0) if pitch_pattern else None
+
+            return note_stream, cur_quarter_len, next_pitch, pitch_pattern
+
         for i in range(len(beat_pattern)):
             cur_char = beat_pattern[i]
-            pitch = pitch_pattern.pop(0) if pitch_pattern else None
-            print(pitch)
 
             if cur_char == '-':     # hit note
                 if cur_quarter_len > 0:
-                    note_stream, cur_quarter_len = self.create_note_to_stream(note_stream, cur_quarter_len, is_note='note', pitch=pitch)
+                    note_stream, cur_quarter_len, pitch, pitch_pattern = \
+                        create_note(note_stream, cur_quarter_len, pitch, pitch_pattern)
+
                 cur_quarter_len += TIME_STEP
                 if i == len(beat_pattern) - 1:
-                    note_stream, cur_quarter_len = self.create_note_to_stream(note_stream, cur_quarter_len, is_note='note', pitch=pitch)
+                    note_stream, cur_quarter_len, pitch, pitch_pattern = \
+                        create_note(note_stream, cur_quarter_len, pitch, pitch_pattern)
 
             elif cur_char == '>':   # hold note
                 cur_quarter_len += TIME_STEP
                 if i == len(beat_pattern) - 1:
-                    note_stream, cur_quarter_len = self.create_note_to_stream(note_stream, cur_quarter_len, is_note='note', pitch=pitch)
+                    note_stream, cur_quarter_len, pitch, pitch_pattern = \
+                        create_note(note_stream, cur_quarter_len, pitch, pitch_pattern)
 
             else:                   # rest note
                 if beat_pattern[i-1] != '_':
-                    note_stream, cur_quarter_len = self.create_note_to_stream(note_stream, cur_quarter_len, is_note='note', pitch=pitch)
+                    note_stream, cur_quarter_len, pitch, pitch_pattern = \
+                        create_note(note_stream, cur_quarter_len, pitch, pitch_pattern)
+
                 cur_quarter_len += TIME_STEP
-                if i == len(beat_pattern) - 1 or i < len(beat_pattern) - 1 and beat_pattern[i+1] != '_':
-                    note_stream, cur_quarter_len = self.create_note_to_stream(note_stream, cur_quarter_len, is_note='rest', pitch=pitch)
+                if i == len(beat_pattern) - 1 or i < len(beat_pattern) - 1 \
+                                                and beat_pattern[i+1] != '_':
+                    note_stream, cur_quarter_len = self.create_note_to_stream(
+                        note_stream, cur_quarter_len, is_note='rest', pitch=pitch)
 
         note_stream.show()
 
@@ -209,11 +225,13 @@ class RhythmGenerator:
         Helper function to create note to stream.
         '''
         if is_note == 'note':
-            new_note = note.Note()
             if not pitch:
+                new_note = note.Note()
                 new_note.pitch.pitchClass = random.randint(0, 15)
             else:
-                new_note.pitch.pitchClass = pitch
+                note_name = chord_generator.DECODE_DICT[pitch] + '4'
+                new_note = note.Note(note_name)
+
         else:
             new_note = note.Rest()
         new_note.duration = duration.Duration(quarter_len)

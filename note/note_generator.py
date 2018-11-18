@@ -5,16 +5,16 @@ Purpose:    Finale module - network model on lead sheet generation given notes a
             as training data.
 
 Improvements needed:
-( ) - With autoencoder used, think how could the generation be done.
-( ) - Should not use mean square error as autoencoder's loss. Change this.
-      It causes problem to both beats data and note data.
+(/) - With autoencoder used, think how could the generation be done. (Use VAE)
 ( ) - We have the first result! But it is exceptionally awful. Optimize it!!
+( ) - Seems like we cannot have polyphonic notes in our data.
+( ) - For VAE, how to generate for not copying the training data??
 ( ) - Data used is not enough. When code structure is more flexible, should incorporate more data.
 '''
 import os
 
-from keras import Sequential
-from keras.layers import Dense, RepeatVector, LSTM
+from keras import Sequential, Input, Model
+from keras.layers import Dense, RepeatVector, LSTM, K
 from keras.models import load_model
 from keras.utils import to_categorical
 from tqdm import tqdm
@@ -23,6 +23,7 @@ from rhythm.rhythm_generator import RhythmGenerator
 from rhythm.rhythm_extractor import RhythmExtractor
 from chord.generator.chord_generator import ChordGenerator, CHORD_DICT
 from chord.extractor.chord_extractor_generic import ChordExtractor
+from models.model_builder import ModelBuilder
 from music21 import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -30,7 +31,7 @@ import matplotlib.pyplot as plt
 MAX_BEAT_LENGTH = 1000
 MAX_CHORD_LENGTH = 200
 MAX_NOTE_LENGTH = 500
-EPOCH_NUM = 100
+EPOCH_NUM = 1000
 FILENAME = '../dataset/ashover.abc'
 
 
@@ -87,42 +88,28 @@ class NoteGenerator():
         else:
             return stacked_input_pattern, one_hot_note_pattern
 
-    def build_model(self, X_train, X_test):
+    def build_model(self, builder, input_dim):
         '''
-        Build a stacked autoencoder here.
+        Build a model using ModelBuilder.
         :param X_train
         :param X_test
         :return: model
         '''
-        input_dim = X_train.shape[-1]
+        # model = builder.build_stacked_autoencoder(input_dim, [512,256,128,256,512])
+        # model = builder.train_model(model, EPOCH_NUM)
+        # model.save('note_model.h5')
+        # return model
 
-        # Start neural network
-        model = Sequential()
-        model.add(Dense(units=512, activation='relu', input_shape=(input_dim,)))
-        model.add(Dense(units=256, activation='relu'))
-        model.add(Dense(units=128, activation='relu'))
-        model.add(Dense(units=256, activation='relu'))
-        model.add(Dense(units=512, activation='relu'))
-        model.add(Dense(input_dim))
+        vae, encoder, decoder = builder.build_and_train_vae(input_dim, 256, 128, EPOCH_NUM)
+        vae.save_weights('note_model_vae.h5')
+        encoder.save_weights('note_model_encoder.h5')
+        decoder.save_weights('note_model_decoder.h5')
 
-        print(model.summary())
-        model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
-        history = model.fit(X_train, X_train, epochs=EPOCH_NUM)
-
-        scores = model.evaluate(X_train, X_train, verbose=True)
-        print('Train loss:', scores[0])
-        print('Train accuracy:', scores[1])
-        scores = model.evaluate(X_test, X_test, verbose=True)
-        print('Test loss:', scores[0])
-        print('Test accuracy:', scores[1])
-
-        plt.plot(range(len(history.history['loss'])), history.history['loss'])
-        plt.show()
-
-        model.save('note_model.h5')
-        return model
+        return vae, encoder, decoder
 
     def train_model(self):
+
+        # load score data
         scores = converter.parse(FILENAME)
         if not os.path.exists('ashover-data.npy'):
             score_vectors = []
@@ -133,45 +120,60 @@ class NoteGenerator():
                 note_vectors.append(note_vector)
             score_vectors = np.array(score_vectors)
             note_vectors = np.array(note_vectors)
-            np.save('ashover-data-data.npy', score_vectors)
+            print('note vector shape', note_vectors.shape)
+            print(note_vectors)
+            np.save('ashover-data.npy', score_vectors)
         else:
             score_vectors = np.load('ashover-data.npy')
 
-        if not os.path.exists('note_model.h5'):
-            model = self.build_model(score_vectors[1].reshape(1,-1), score_vectors[1].reshape(1,-1))
+        # load models
+        builder = ModelBuilder(score_vectors, score_vectors, score_vectors, score_vectors)
+        if not os.path.exists('note_model_vae.h5'):
+            vae, encoder, generator = self.build_model(builder, score_vectors.shape[-1])
         else:
-            model = load_model('note_model.h5')
+            vae, encoder, generator, _, _ = builder.build_vae_model(score_vectors.shape[-1], 256, 128)
 
-        # Predict the last score
-        scores[1].show()
-        predict_vector = np.squeeze(model.predict(
-                            score_vectors[1].reshape(1, score_vectors[1].shape[0])))
+        # Predict any score
+        index = 1
+        target = score_vectors[index].reshape(1, score_vectors[index].shape[0])
 
-        # post processing
-        predict_vector = np.rint(predict_vector)
-        predict_vector = self.predict_vector_check(predict_vector)
+        # two step predict
+        z_mean, z_log_var, z = encoder.predict(target)
+        print("min max", np.amin(z), np.amax(z), z.shape)
+        predict_vector_1 = generator.predict(z)
+        predict_vector_1 = np.rint(predict_vector_1[0])
+        # self.__evaluate_predict_vector(predict_vector_1, target)
 
-        plt.plot(range(len(score_vectors[1])), score_vectors[1], label='actual')
-        plt.legend()
-        plt.show()
-        plt.plot(range(len(predict_vector)), predict_vector, label='predict')
-        plt.legend()
-        plt.show()
+        # one step predict
+        predict_vector_2 = vae.predict(target)
+        predict_vector_2 = np.rint(predict_vector_2[0])
+        # self.__evaluate_predict_vector(predict_vector_2, target)
 
-        # visualization
-        self.convert_vector_to_score(predict_vector)
+        # scores[index].show()
+        # self.convert_vector_to_score(predict_vector_2)
+
+        # generate from noise
+        batch, dim = z_mean.shape
+        epsilon = np.random.normal(0, 1, (batch,dim))
+        seed = z_mean + np.exp(0.5 * z_log_var) * epsilon
+
+        seed = np.random.normal(0, 1, (batch,dim))
+        print("min max", np.amin(seed), np.amax(seed), seed.shape)
+
+        generated_vector = generator.predict(seed)
+        generated_vector = np.rint(generated_vector[0])
+        generated_vector = self.predict_vector_check(generated_vector)
+
+        # scores[index].show()
+        self.convert_vector_to_score(generated_vector)
 
     def predict_vector_check(self, predict_vector):
         beat_anomaly = [i for i in predict_vector[:1000] if i < 0 or i > 2]
         chord_anomaly = [i for i in predict_vector[1000:1200] if i < 0 or i > 25]
         note_anomaly = [i for i in predict_vector[1200:1700] if i < 0 or i > 12]
-
-        # print(beat_anomaly)
-        # print(chord_anomaly)
-        # print(note_anomaly)
-        # print("Beat anomaly: {} Chord anomaly: {} Note anomaly: {}".format(len(beat_anomaly),
-        #                                                                    len(chord_anomaly),
-        #                                                                    len(note_anomaly)))
+        print("Beat anomaly: {} Chord anomaly: {} Note anomaly: {}".format(len(beat_anomaly) / 1000,
+                                                                           len(chord_anomaly) / 200,
+                                                                           len(note_anomaly) / 500))
 
         def sanitize(predict_vector, upper_value, range_start, range_end):
             for i in range(range_start, range_end):
@@ -190,6 +192,8 @@ class NoteGenerator():
         beat_vector = list(vector[:1000])
         note_vector = list(vector[1200:1700])
 
+        # print(beat_vector)
+
         # remove trailing zeros used for model training
         # problem: among the zeros there are some ones. problem comes from using m.s.e.
         cur_beat, cur_note = 0, 0
@@ -200,7 +204,6 @@ class NoteGenerator():
 
         rhythm_generator = RhythmGenerator('')
         beat_pattern = rhythm_generator.decode_beats_from_rhythm_id(np.array(beat_vector))
-        print(beat_pattern)
         rhythm_generator.show_beats_as_notes(beat_pattern, pitch_pattern=note_vector)
 
     def __convert_tensor_to_one_hot(self, predict_vector):
@@ -213,9 +216,24 @@ class NoteGenerator():
 
         return one_hot_predict_vector
 
+    def __evaluate_predict_vector(self, predict_vector, target):
+        '''
+        Evaluate the accuracy of 3 aspects of predict vector
+        :param predict_vector:
+        :param target:
+        :return:
+        '''
+        def evaluate(predict, target, string):
+            acc_arr = (predict == target).astype(int)
+            print('{}: {}'.format(string, np.count_nonzero(acc_arr) / acc_arr.shape[-1]))
 
-
-
+        print('==========   Evaluation   ============')
+        evaluate(predict_vector, target, "Overall test acc")
+        evaluate(predict_vector[:1000], target[0,:1000], "Beat test acc")
+        evaluate(predict_vector[1000:1200], target[0,1000:1200], "Chord test acc")
+        evaluate(predict_vector[1200:], target[0,1200:], "Note test acc")
+        # print(target[0,:1000])
+        print('======================================')
 
 
 def main():
