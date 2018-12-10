@@ -1,7 +1,14 @@
-dataset/*
 *.h5
 *.mscz
 *.abc
 *.txt
 *.log
 .idea
+*.PNG
+*.pyc
+.mid
+.npy
+dataset/McGill-BillBoard
+dataset/Nottingham
+dataset/Nottingham-Data
+dataset/*.mid

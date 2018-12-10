@@ -19,7 +19,6 @@ from music21 import *
 import logging
 import re
 from collections import OrderedDict
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -38,7 +37,7 @@ class ChordExtractor:
 
     # to parse a song and understand the structure of its music21 stream object
     def parse(self, a, string, num):
-        if num > 1000:
+        if num > 5000:
             return
         if hasattr(a, '__len__'):
             logger.info(string + str(a) + ' ' + str(len(a)))
@@ -105,6 +104,11 @@ class ChordExtractor:
     def extract_chords(self, score):
         measures_with_notes = self.extract_measures_from_score(score)
         chord_list = []
+
+        # a prevention approach for scores without key signatures
+        if not self.key_signature:
+            self.key_signature.append(key.KeySignature(3))
+
         for measure in measures_with_notes:
             pre_chord = None if not chord_list else chord_list[-1]
             chord = self.extract_chord_from_notes(measure, pre_chord, self.key_signature)

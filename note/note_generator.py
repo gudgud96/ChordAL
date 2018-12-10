@@ -24,6 +24,7 @@ from rhythm.rhythm_extractor import RhythmExtractor
 from chord.generator.chord_generator import ChordGenerator, CHORD_DICT
 from chord.extractor.chord_extractor_generic import ChordExtractor
 from models.model_builder import ModelBuilder
+from dataset.data_pipeline import DataPipeline
 from music21 import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -110,21 +111,24 @@ class NoteGenerator():
     def train_model(self):
 
         # load score data
-        scores = converter.parse(FILENAME)
-        if not os.path.exists('ashover-data.npy'):
-            score_vectors = []
-            note_vectors = []
-            for score in tqdm(scores):
-                score_vector, note_vector = self.get_train_test_data(score, is_stacked=True)
-                score_vectors.append(score_vector)
-                note_vectors.append(note_vector)
-            score_vectors = np.array(score_vectors)
-            note_vectors = np.array(note_vectors)
-            print('note vector shape', note_vectors.shape)
-            print(note_vectors)
-            np.save('ashover-data.npy', score_vectors)
-        else:
-            score_vectors = np.load('ashover-data.npy')
+        # scores = converter.parse(FILENAME)
+        # if not os.path.exists('ashover-data.npy'):
+        #     score_vectors = []
+        #     note_vectors = []
+        #     for score in tqdm(scores):
+        #         score_vector, note_vector = self.get_train_test_data(score, is_stacked=True)
+        #         score_vectors.append(score_vector)
+        #         note_vectors.append(note_vector)
+        #     score_vectors = np.array(score_vectors)
+        #     note_vectors = np.array(note_vectors)
+        #     print('note vector shape', note_vectors.shape)
+        #     print(note_vectors)
+        #     np.save('ashover-data.npy', score_vectors)
+        # else:
+        #     score_vectors = np.load('ashover-data.npy')
+        dp = DataPipeline()
+        score_vectors = dp.get_nottingham_data(is_stacked=True)
+        score_vectors = score_vectors.reshape(score_vectors.shape[0], score_vectors.shape[1])
 
         # load models
         builder = ModelBuilder(score_vectors, score_vectors, score_vectors, score_vectors)
@@ -147,10 +151,11 @@ class NoteGenerator():
         # one step predict
         predict_vector_2 = vae.predict(target)
         predict_vector_2 = np.rint(predict_vector_2[0])
-        # self.__evaluate_predict_vector(predict_vector_2, target)
+        predict_vector_2 = self.predict_vector_check(predict_vector_2)
+        self.__evaluate_predict_vector(predict_vector_2, target)
 
         # scores[index].show()
-        # self.convert_vector_to_score(predict_vector_2)
+        self.convert_vector_to_score(predict_vector_2)
 
         # generate from noise
         batch, dim = z_mean.shape
