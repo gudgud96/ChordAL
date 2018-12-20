@@ -109,23 +109,9 @@ class NoteGenerator():
         return vae, encoder, decoder
 
     def train_model(self):
-
-        # load score data
-        # scores = converter.parse(FILENAME)
-        # if not os.path.exists('ashover-data.npy'):
-        #     score_vectors = []
-        #     note_vectors = []
-        #     for score in tqdm(scores):
-        #         score_vector, note_vector = self.get_train_test_data(score, is_stacked=True)
-        #         score_vectors.append(score_vector)
-        #         note_vectors.append(note_vector)
-        #     score_vectors = np.array(score_vectors)
-        #     note_vectors = np.array(note_vectors)
-        #     print('note vector shape', note_vectors.shape)
-        #     print(note_vectors)
-        #     np.save('ashover-data.npy', score_vectors)
-        # else:
-        #     score_vectors = np.load('ashover-data.npy')
+        '''
+        Train the model for note generator.
+        '''
         dp = DataPipeline()
         score_vectors = dp.get_nottingham_data(is_stacked=True)
         score_vectors = score_vectors.reshape(score_vectors.shape[0], score_vectors.shape[1])

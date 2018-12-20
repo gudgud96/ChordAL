@@ -8,7 +8,9 @@ Improvements needed:
 ( ) - Include Lakh Dataaset pipeline.
 '''
 import os
+import time
 
+import pretty_midi
 from keras.utils import to_categorical
 from tqdm import tqdm
 
@@ -22,7 +24,6 @@ import numpy as np
 MAX_BEAT_LENGTH = 1000
 MAX_CHORD_LENGTH = 200
 MAX_NOTE_LENGTH = 500
-
 
 class DataPipeline:
     def __init__(self):
@@ -69,7 +70,7 @@ class DataPipeline:
 
     def __save_nottingham_data(self):
         '''
-        Save Nottingham Dataset into numpy format.
+        Save Nottingham Dataset into numpy format. From abc version.
         '''
         FILENAME = 'Nottingham/'
         SAVENAME = 'Nottingham-Data/'
@@ -146,13 +147,80 @@ class DataPipeline:
         else:
             return stacked_input_pattern, one_hot_note_pattern
 
+    def get_nottingham_piano_roll(self, is_reset=False, is_small_set=True):
+        '''
+        Public method to get Nottingham Dataset piano roll.
+        :param is_reset: to reset all saved data or not
+        :param is_small_set: whether to get the small set
+        :return: chords tensors and melodies tensors of shape (x, 100, 128, 12)
+        '''
+        if is_reset:
+            self.__save_nottingham_piano_roll(0, 200, 1)
+            self.__save_nottingham_piano_roll(200, 400, 2)
+            self.__save_nottingham_piano_roll(400, 600, 3)
+            self.__save_nottingham_piano_roll(600, 800, 4)
+            self.__save_nottingham_piano_roll(800, 1021, 5)
+
+        print("Loading Nottingham Piano Roll...")
+        t1 = time.time()
+        if is_small_set:
+            chords_1 = np.load("../dataset/Nottingham-Piano/chords-1.npy")
+            melodies_1 = np.load("../dataset/Nottingham-Piano/melodies-1.npy")
+        else:
+            chords_1 = np.load("../dataset/Nottingham-Piano/chords.npy")
+            melodies_1 = np.load("../dataset/Nottingham-Piano/melodies.npy")
+
+        # print(chords_1.shape)
+        # print(melodies_1.shape)
+        print("Loading takes {} seconds.".format(time.time() - t1))
+        return chords_1, melodies_1
+
+    def __save_nottingham_piano_roll(self, start, end, i, FS=12):
+        MELODY_FNAME = '../dataset/Nottingham-midi/melody/'
+        CHORD_FNAME = '../dataset/Nottingham-midi/chords/'
+        SAVENAME = '../dataset/Nottingham-midi-dataset/'
+        MAX_NUM_OF_BARS = 100
+        # FS = 12
+        filelist = os.listdir(CHORD_FNAME)
+        melody_prs = []
+        chord_prs = []
+        # i = 0
+        for file in tqdm(filelist[start:end]):
+            melody_midi = pretty_midi.PrettyMIDI(MELODY_FNAME + file)
+            chord_midi = pretty_midi.PrettyMIDI(CHORD_FNAME + file)
+            melody_pr = melody_midi.get_piano_roll(fs=FS)
+            # print(melody_pr.shape)
+            if melody_pr.shape[-1] < MAX_NUM_OF_BARS * FS:
+                to_pad = MAX_NUM_OF_BARS * FS - melody_pr.shape[-1]
+                melody_pr = np.pad(melody_pr, [(0,0), (0,to_pad)], mode='constant', constant_values=0)
+            else:
+                melody_pr = melody_pr[:, :MAX_NUM_OF_BARS * FS]
+
+            chord_pr = chord_midi.get_piano_roll(fs=FS)
+            if chord_pr.shape[-1] < MAX_NUM_OF_BARS * FS:
+                to_pad = MAX_NUM_OF_BARS  * FS - chord_pr.shape[-1]
+                chord_pr = np.pad(chord_pr, [(0,0), (0,to_pad)], mode='constant', constant_values=0)
+            else:
+                chord_pr = chord_pr[:, :MAX_NUM_OF_BARS * FS]
+
+            melody_pr = melody_pr.reshape(-1, 128, FS)
+            chord_pr = chord_pr.reshape(-1, 128, FS)
+
+            assert melody_pr.shape == (100, 128, FS)
+            assert chord_pr.shape == (100, 128, FS)
+
+            melody_prs.append(melody_pr)
+            chord_prs.append(chord_pr)
+
+        np.save('melodies-{}.npy'.format(i), melody_prs)
+        np.save('chords-{}.npy'.format(i), chord_prs)
+
     def get_lakh_data(self):
-        pass
+        CHORD_FNAME = '../dataset/Nottingham-midi/chords/'
+        filelist = os.listdir(CHORD_FNAME)
+        print(len(filelist))
 
 
 if __name__ == "__main__":
     a = DataPipeline()
-    scores = a.get_nottingham_data(is_stacked=True)
-    print(scores.shape)
-    scores, vectors = a.get_nottingham_data()
-    print(scores.shape, vectors.shape)
+    a.get_nottingham_piano_roll()

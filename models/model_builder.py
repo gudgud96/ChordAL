@@ -8,7 +8,8 @@ Improvements needed:
 '''
 from keras import objectives
 from keras.models import Model, Sequential
-from keras.layers import Input, LSTM, Dense, Lambda
+from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
+    Flatten, Convolution2D, GRU, LeakyReLU
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -114,15 +115,70 @@ class ModelBuilder:
 
         return vae, encoder, generator, z_log_var, z_mean
 
+    def build_basic_rnn_model(self, input_dim, use_dropout=False):
+        '''
+        Build basic RNN model using LSTMs.
+        :param input_dim: input dimension, normally (100, 128 * 12)
+        :param use_dropout: whether to use dropout
+        :return: model
+        '''
+        print(input_dim)
+        model = Sequential()
+
+        # model.add(TimeDistributed(Conv2D(32, kernel_size=(3, 3), padding='same'), input_shape=input_dim))
+        # model.add(TimeDistributed(MaxPooling2D()))
+        # model.add(TimeDistributed(Flatten()))
+        # model.add(TimeDistributed(Dense(32)))
+
+        model.add(GRU(64, return_sequences=True, input_shape=input_dim))
+        model.add(LeakyReLU(alpha=0.3))
+        # model.add(LSTM(64, return_sequences=True))
+        if use_dropout:
+            model.add(Dropout(0.8))
+        # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
+        model.add(TimeDistributed(Dense(input_dim[-1])))
+        model.add(Activation('tanh'))
+        return model
+
+    def build_basic_conv2d_rnn_model(self, input_dim, use_dropout=False):
+        '''
+        Build basic Conv2d -> RNN model using LSTMs.
+        :param input_dim: input dimension, normally (100, 128 * 12)
+        :param use_dropout: whether to use dropout
+        :return: model
+        '''
+        print(input_dim)
+        model = Sequential()
+
+        model.add(TimeDistributed(Conv2D(32, kernel_size=(3, 3), padding='same'), input_shape=input_dim))
+        model.add(TimeDistributed(MaxPooling2D()))
+        model.add(TimeDistributed(Flatten()))
+        model.add(TimeDistributed(Dense(32)))
+
+        model.add(GRU(64, return_sequences=True, input_shape=input_dim))
+        model.add(LeakyReLU(alpha=0.3))
+        # model.add(LSTM(64, return_sequences=True))
+        if use_dropout:
+            model.add(Dropout(0.8))
+        model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
+        # model.add(TimeDistributed(Dense(input_dim[-1])))
+        model.add(Activation('tanh'))
+        return model
+
     def train_model(self, model, epochs, loss='mean_squared_error'):
         print(model.summary())
-        model.compile(loss=loss, optimizer='adam', metrics=['accuracy'])
-        history = model.fit(self.X_train, self.X_train, epochs=epochs)
+        loss_metrics_dict = {
+            "mean_squared_error": ['accuracy'],
+            "binary_crossentropy": ['binary_accuracy'],
+            "categorical_crossentropy": ['categorical_accuracy']
+        }
+        model.compile(loss=loss, optimizer='adam', metrics=loss_metrics_dict[loss])
+        history = model.fit(self.X_train, self.Y_train, epochs=epochs)
 
-        scores = model.evaluate(self.X_train, self.X_train, verbose=True)
+        scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
         print('Train loss:', scores[0])
         print('Train accuracy:', scores[1])
-        scores = model.evaluate(self.X_test, self.X_test, verbose=True)
+        scores = model.evaluate(self.X_test, self.Y_test, verbose=True)
         print('Test loss:', scores[0])
         print('Test accuracy:', scores[1])
 
@@ -130,7 +186,6 @@ class ModelBuilder:
         plt.show()
 
         return model
-
 
 def sampling(args):
     """
@@ -157,3 +212,6 @@ def vae_loss_custom(z_log_var, z_mean):
         kl_loss = - 0.5 * K.mean(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
         return mse_loss + kl_loss
     return vae_loss
+
+if __name__ == "__main__":
+    a = ModelBuilder()
