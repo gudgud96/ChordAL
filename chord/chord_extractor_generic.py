@@ -20,12 +20,12 @@ import logging
 import re
 from collections import OrderedDict
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-handler = logging.FileHandler('test.log', mode='w')
-handler.setLevel(logging.INFO)
-# add the handlers to the logger
-logger.addHandler(handler)
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.INFO)
+# handler = logging.FileHandler('test.log', mode='w')
+# handler.setLevel(logging.INFO)
+# # add the handlers to the logger
+# logger.addHandler(handler)
 
 
 class ChordExtractor:
@@ -40,13 +40,11 @@ class ChordExtractor:
         if num > 5000:
             return
         if hasattr(a, '__len__'):
-            logger.info(string + str(a) + ' ' + str(len(a)))
             if type(a) == stream.Measure:
                 self.measures.append(a)
             for i in range(len(a)):
                 self.parse(a[i], string + '--', num + 1)
         else:
-            logger.info(string + str(a))
             if type(a) == key.KeySignature:
                 self.key_signature.append(a)
 

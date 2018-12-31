@@ -1,3 +1,4 @@
+# Data files
 *.h5
 *.mscz
 *.abc
@@ -8,7 +9,22 @@
 *.pyc
 .mid
 .npy
+
+# Dataset Files
 dataset/McGill-BillBoard
 dataset/Nottingham
 dataset/Nottingham-Data
+dataset/Nottingham-midi
+dataset/Nottingham-Piano
 dataset/*.mid
+
+# Collections
+chord/collections/
+generator/collections/
+note/collections/
+
+# Showcase
+showcase/
+
+# Visualizer generations
+visualizer/app/static/

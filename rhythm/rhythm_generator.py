@@ -22,7 +22,7 @@ from music21 import *
 import numpy as np
 import os.path
 import random
-import chord.generator.chord_generator as chord_generator
+import chord.chord_generator as chord_generator
 
 # Configurable variables
 BEATS_FILE = "beats_nottingham_training.txt"

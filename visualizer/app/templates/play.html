@@ -1,0 +1,13 @@
+{% extends "index.html" %}
+{% block content %}
+<br/>
+<div>
+    <p>Song generation done. "Play" to listen.</p>
+    <a href="#" onClick='{{ message }}'>
+        <i class="fa fa-play-circle-o" style="font-size:36px;"></i>
+    </a>
+    <a href="#" onclick="MIDIjs.stop();">
+        <i class="fa fa-stop-circle-o" style="font-size:36px;"></i>
+    </a>
+</div>
+{% endblock %}

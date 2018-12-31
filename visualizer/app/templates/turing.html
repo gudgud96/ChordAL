@@ -1,0 +1,79 @@
+<div>
+    <form action="/turing" method="post">
+        <div class="form-group row">
+            <label class="col-sm-2 col-form-label">Song 1:</label>
+            <div class="col-sm-3">
+                <a href="#" id='song1' onClick="{{ song1 }}">
+                    <i class="fa fa-play-circle-o" style="font-size:36px;"></i>
+                </a>
+                <a href="#" onclick="MIDIjs.stop();">
+                    <i class="fa fa-stop-circle-o" style="font-size:36px;"></i>
+                </a>
+            </div>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r1" value="0">Human</label>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r1" value="1">AI</label>
+        </div>
+        <div class="form-group row">
+            <label class="col-sm-2 col-form-label">Song 2:</label>
+            <div class="col-sm-3">
+                <a href="#" id='song2' onClick="{{ song2 }}">
+                    <i class="fa fa-play-circle-o" style="font-size:36px;"></i>
+                </a>
+                <a href="#" onclick="MIDIjs.stop();">
+                    <i class="fa fa-stop-circle-o" style="font-size:36px;"></i>
+                </a>
+            </div>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r2" value="0">Human</label>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r2" value="1">AI</label>
+        </div>
+        <div class="form-group row">
+            <label class="col-sm-2 col-form-label">Song 3:</label>
+            <div class="col-sm-3">
+                <a href="#" id='song3' onClick="{{ song3 }}">
+                    <i class="fa fa-play-circle-o" style="font-size:36px;"></i>
+                </a>
+                <a href="#" onclick="MIDIjs.stop();">
+                    <i class="fa fa-stop-circle-o" style="font-size:36px;"></i>
+                </a>
+            </div>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r3" value="0">Human</label>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r3" value="1">AI</label>
+        </div>
+        <div class="form-group row">
+            <label class="col-sm-2 col-form-label">Song 4:</label>
+            <div class="col-sm-3">
+                <a href="#" id='song4' onClick="{{ song4 }}">
+                    <i class="fa fa-play-circle-o" style="font-size:36px;"></i>
+                </a>
+                <a href="#" onclick="MIDIjs.stop();">
+                    <i class="fa fa-stop-circle-o" style="font-size:36px;"></i>
+                </a>
+            </div>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r4" value="0">Human</label>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r4" value="1">AI</label>
+        </div>
+        <div class="form-group row">
+            <label class="col-sm-2 col-form-label">Song 5:</label>
+            <div class="col-sm-3">
+                <a href="#" id='song5' onClick="{{ song5 }}">
+                    <i class="fa fa-play-circle-o" style="font-size:36px;"></i>
+                </a>
+                <a href="#" onclick="MIDIjs.stop();">
+                    <i class="fa fa-stop-circle-o" style="font-size:36px;"></i>
+                </a>
+            </div>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r5" value="0">Human</label>
+            <label class="col-sm-2 radio-inline"><input type="radio" name="r5" value="1">AI</label>
+        </div>
+        <button name="forwardBtn" type="submit" class="btn btn-primary">Submit</button>
+    </form>
+
+    <!--{% with messages = get_flashed_messages() %}-->
+        <!--{% for m in messages %}-->
+            <!--<p>{{ m }}</p>-->
+        <!--{% endfor %}-->
+    <!--{% endwith %}-->
+
+    {% block content %}{% endblock %}
+
+</div>

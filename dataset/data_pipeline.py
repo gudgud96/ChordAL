@@ -4,7 +4,7 @@ Project:    deeppop
 Purpose:    Data pipeline module to meet data requirements for training models.
 
 Improvements needed:
-( ) - Include Nottingham Dataset pipeline.
+(/) - Include Nottingham Dataset pipeline.
 ( ) - Include Lakh Dataaset pipeline.
 '''
 import os
@@ -14,8 +14,8 @@ import pretty_midi
 from keras.utils import to_categorical
 from tqdm import tqdm
 
-from chord.extractor.chord_extractor_generic import ChordExtractor
-from chord.generator.chord_generator import ChordGenerator, CHORD_DICT
+from chord.chord_extractor_generic import ChordExtractor
+from chord.chord_generator import ChordGenerator, CHORD_DICT
 from rhythm.rhythm_extractor import RhythmExtractor
 from rhythm.rhythm_generator import RhythmGenerator
 from music21 import *
@@ -24,6 +24,8 @@ import numpy as np
 MAX_BEAT_LENGTH = 1000
 MAX_CHORD_LENGTH = 200
 MAX_NOTE_LENGTH = 500
+MAX_NUM_OF_BARS = 100
+FS = 12
 
 class DataPipeline:
     def __init__(self):
@@ -160,6 +162,7 @@ class DataPipeline:
             self.__save_nottingham_piano_roll(400, 600, 3)
             self.__save_nottingham_piano_roll(600, 800, 4)
             self.__save_nottingham_piano_roll(800, 1021, 5)
+            self.__merge_nottingham_piano_roll()
 
         print("Loading Nottingham Piano Roll...")
         t1 = time.time()
@@ -170,8 +173,12 @@ class DataPipeline:
             chords_1 = np.load("../dataset/Nottingham-Piano/chords.npy")
             melodies_1 = np.load("../dataset/Nottingham-Piano/melodies.npy")
 
-        # print(chords_1.shape)
-        # print(melodies_1.shape)
+        # reshape
+        # chords_1 = chords_1.reshape(200, 1200, 128)
+        # melodies_1 = melodies_1.reshape(200, 1200, 128)
+
+        print(chords_1.shape)
+        print(melodies_1.shape)
         print("Loading takes {} seconds.".format(time.time() - t1))
         return chords_1, melodies_1
 
@@ -179,8 +186,7 @@ class DataPipeline:
         MELODY_FNAME = '../dataset/Nottingham-midi/melody/'
         CHORD_FNAME = '../dataset/Nottingham-midi/chords/'
         SAVENAME = '../dataset/Nottingham-midi-dataset/'
-        MAX_NUM_OF_BARS = 100
-        # FS = 12
+
         filelist = os.listdir(CHORD_FNAME)
         melody_prs = []
         chord_prs = []
@@ -203,17 +209,26 @@ class DataPipeline:
             else:
                 chord_pr = chord_pr[:, :MAX_NUM_OF_BARS * FS]
 
-            melody_pr = melody_pr.reshape(-1, 128, FS)
-            chord_pr = chord_pr.reshape(-1, 128, FS)
-
-            assert melody_pr.shape == (100, 128, FS)
-            assert chord_pr.shape == (100, 128, FS)
+            melody_pr = melody_pr.reshape(128, MAX_NUM_OF_BARS * FS)
+            chord_pr = chord_pr.reshape(128, MAX_NUM_OF_BARS * FS)
 
             melody_prs.append(melody_pr)
             chord_prs.append(chord_pr)
 
         np.save('melodies-{}.npy'.format(i), melody_prs)
         np.save('chords-{}.npy'.format(i), chord_prs)
+
+    def __merge_nottingham_piano_roll(self):
+        chords = np.load('chords-1.npy')
+        melodies = np.load('melodies-1.npy')
+        for i in range(2, 5):
+            temp_c = np.load('chords-{}.npy'.format(i))
+            temp_m = np.load('melodies-{}.npy'.format(i))
+            chords = np.concatenate((chords, temp_c), axis=0)
+            melodies = np.concatenate((melodies, temp_m), axis=0)
+
+        np.save('chords.npy', chords)
+        np.save('melodies.npy', melodies)
 
     def get_lakh_data(self):
         CHORD_FNAME = '../dataset/Nottingham-midi/chords/'
@@ -223,4 +238,4 @@ class DataPipeline:
 
 if __name__ == "__main__":
     a = DataPipeline()
-    a.get_nottingham_piano_roll()
+    a.get_nottingham_piano_roll(is_small_set=False)

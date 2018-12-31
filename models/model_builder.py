@@ -4,7 +4,7 @@ Project:    deeppop
 Purpose:    Model Builder - should have this component that stores all kinds of candidate models.
 
 Improvements needed:
-( ) - For VAE, try to bring custom loss with KL divergence in
+(/) - For VAE, try to bring custom loss with KL divergence in
 '''
 from keras import objectives
 from keras.models import Model, Sequential
@@ -124,20 +124,12 @@ class ModelBuilder:
         '''
         print(input_dim)
         model = Sequential()
-
-        # model.add(TimeDistributed(Conv2D(32, kernel_size=(3, 3), padding='same'), input_shape=input_dim))
-        # model.add(TimeDistributed(MaxPooling2D()))
-        # model.add(TimeDistributed(Flatten()))
-        # model.add(TimeDistributed(Dense(32)))
-
         model.add(GRU(64, return_sequences=True, input_shape=input_dim))
-        model.add(LeakyReLU(alpha=0.3))
-        # model.add(LSTM(64, return_sequences=True))
-        if use_dropout:
-            model.add(Dropout(0.8))
+        model.add(GRU(128, return_sequences=True))
+        model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(input_dim[-1])))
-        model.add(Activation('tanh'))
+        model.add(Activation('softmax'))
         return model
 
     def build_basic_conv2d_rnn_model(self, input_dim, use_dropout=False):
@@ -162,8 +154,18 @@ class ModelBuilder:
             model.add(Dropout(0.8))
         model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         # model.add(TimeDistributed(Dense(input_dim[-1])))
-        model.add(Activation('tanh'))
+        model.add(Activation('sigmoid'))
         return model
+
+    def build_basic_cnn_model(self, input_dim, use_dropout=False):
+        model = Sequential()
+
+        model.add(Conv2D(32, kernel_size=(3, 3), padding='same'), input_shape=input_dim)
+        model.add(MaxPooling2D())
+        model.add(Conv2D(64, kernel_size=(5, 5), padding='same'))
+        model.add(MaxPooling2D())
+        model.add(Flatten())
+        model.add(TimeDistributed(Dense(32)))
 
     def train_model(self, model, epochs, loss='mean_squared_error'):
         print(model.summary())
