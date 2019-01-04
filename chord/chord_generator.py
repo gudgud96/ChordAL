@@ -26,6 +26,7 @@ import os
 
 # Configurable variables
 CHORD_SEQUENCE_FILE = "../chord/chord_sequence_all_no_repeat.txt"
+CHORD_SEQUENCE_FILE_SHIFTED = "../chord/chord_sequence_all_no_repeat_normalized.txt"
 TT_SPLIT = 0.8  # percentage of train / test
 CHORD_DICT = {
   "Cb": 12, "C": 1, "C#": 2, "Db": 2, "D": 3, "D#": 4, "Eb": 4, "E": 5, "E#": 6,
@@ -251,12 +252,21 @@ class ChordGenerator:
 
     def generate_chords(self, example_chord=None, num_of_chords=32, is_retrain=False):
         X_train, X_test, Y_train, Y_test = self.preprocess_data(TT_SPLIT, is_small_dataset=False)
-        if os.path.exists('../chord/chord_model.h5') and not is_retrain:
-            print('Loading chord_model.h5...')
-            model = load_model('../chord/chord_model.h5')
+        if 'shifted' in self.train_file:
+            if os.path.exists('../chord/chord_model.h5') and not is_retrain:
+                print('Loading chord_model.h5...')
+                model = load_model('../chord/chord_model.h5')
+            else:
+                model = self.build_model(X_train, X_test, Y_train, Y_test)
+                model.save('../chord/chord_model_normalized.h5')
+
         else:
-            model = self.build_model(X_train, X_test, Y_train, Y_test)
-            model.save('../chord/chord_model.h5')
+            if os.path.exists('../chord/chord_model_normalized.h5') and not is_retrain:
+                print('Loading chord_model_normalized.h5...')
+                model = load_model('../chord/chord_model_normalized.h5')
+            else:
+                model = self.build_model(X_train, X_test, Y_train, Y_test)
+                model.save('../chord/chord_model.h5')
 
         if not example_chord:
             # if no example chord sequence is provided, randomly generate one from train data
@@ -297,8 +307,10 @@ class ChordGenerator:
 
 
 if __name__ == "__main__":
-    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
-    result = chord_generator.generate_chords(['G:min', 'D:maj', 'Eb:maj'])
-    print(result)
-    chord_generator.evaluate_chord_variation_coefficient(result)
-    chord_generator.chords_to_midi(result)
+    # chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
+    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE_SHIFTED)
+    chord_generator.generate_chords()
+    # result = chord_generator.generate_chords(['G:min', 'D:maj', 'Eb:maj'])
+    # print(result)
+    # chord_generator.evaluate_chord_variation_coefficient(result)
+    # chord_generator.chords_to_midi(result)
