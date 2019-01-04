@@ -252,18 +252,18 @@ class ChordGenerator:
 
     def generate_chords(self, example_chord=None, num_of_chords=32, is_retrain=False):
         X_train, X_test, Y_train, Y_test = self.preprocess_data(TT_SPLIT, is_small_dataset=False)
-        if 'shifted' in self.train_file:
-            if os.path.exists('../chord/chord_model.h5') and not is_retrain:
+        if 'normalized' in self.train_file:
+            if os.path.exists('../chord/chord_model_normalized.h5') and not is_retrain:
                 print('Loading chord_model.h5...')
-                model = load_model('../chord/chord_model.h5')
+                model = load_model('../chord/chord_model_normalized.h5')
             else:
                 model = self.build_model(X_train, X_test, Y_train, Y_test)
                 model.save('../chord/chord_model_normalized.h5')
 
         else:
-            if os.path.exists('../chord/chord_model_normalized.h5') and not is_retrain:
-                print('Loading chord_model_normalized.h5...')
-                model = load_model('../chord/chord_model_normalized.h5')
+            if os.path.exists('../chord/chord_model.h5') and not is_retrain:
+                print('Loading chord_model.h5...')
+                model = load_model('../chord/chord_model.h5')
             else:
                 model = self.build_model(X_train, X_test, Y_train, Y_test)
                 model.save('../chord/chord_model.h5')
