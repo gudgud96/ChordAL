@@ -149,7 +149,7 @@ class DataPipeline:
         else:
             return stacked_input_pattern, one_hot_note_pattern
 
-    def get_nottingham_piano_roll(self, is_reset=False, is_small_set=True):
+    def get_nottingham_piano_roll(self, is_reset=False, is_small_set=True, is_shifted=True):
         '''
         Public method to get Nottingham Dataset piano roll.
         :param is_reset: to reset all saved data or not
@@ -157,21 +157,35 @@ class DataPipeline:
         :return: chords tensors and melodies tensors of shape (x, 100, 128, 12)
         '''
         if is_reset:
-            self.__save_nottingham_piano_roll(0, 200, 1)
-            self.__save_nottingham_piano_roll(200, 400, 2)
-            self.__save_nottingham_piano_roll(400, 600, 3)
-            self.__save_nottingham_piano_roll(600, 800, 4)
-            self.__save_nottingham_piano_roll(800, 1021, 5)
+            self.__save_nottingham_piano_roll(0, 200, 1, is_shifted=is_shifted)
+            self.__save_nottingham_piano_roll(200, 400, 2, is_shifted=is_shifted)
+            self.__save_nottingham_piano_roll(400, 600, 3, is_shifted=is_shifted)
+            self.__save_nottingham_piano_roll(600, 800, 4, is_shifted=is_shifted)
+            self.__save_nottingham_piano_roll(800, 1021, 5, is_shifted=is_shifted)
             self.__merge_nottingham_piano_roll()
 
         print("Loading Nottingham Piano Roll...")
+        shifted_fname = "Nottingham-Piano-shifted"
+        non_shifted_fname = "Nottingham-Piano"
         t1 = time.time()
         if is_small_set:
-            chords_1 = np.load("../dataset/Nottingham-Piano/chords-1.npy")
-            melodies_1 = np.load("../dataset/Nottingham-Piano/melodies-1.npy")
+            if is_shifted:
+                print('Loading from {}'.format("../dataset/" + shifted_fname))
+                chords_1 = np.load("../dataset/" + shifted_fname + "/chords-1.npy")
+                melodies_1 = np.load("../dataset/" + shifted_fname + "/melodies-1.npy")
+            else:
+                print('Loading from {}'.format("../dataset/" + non_shifted_fname))
+                chords_1 = np.load("../dataset/" + non_shifted_fname + "/chords-1.npy")
+                melodies_1 = np.load("../dataset/" + non_shifted_fname + "/melodies-1.npy")
         else:
-            chords_1 = np.load("../dataset/Nottingham-Piano/chords.npy")
-            melodies_1 = np.load("../dataset/Nottingham-Piano/melodies.npy")
+            if is_shifted:
+                print('Loading from {}'.format("../dataset/" + shifted_fname))
+                chords_1 = np.load("../dataset/" + shifted_fname + "/chords.npy")
+                melodies_1 = np.load("../dataset/" + shifted_fname + "/melodies.npy")
+            else:
+                print('Loading from {}'.format("../dataset/" + non_shifted_fname))
+                chords_1 = np.load("../dataset/" + non_shifted_fname + "/chords.npy")
+                melodies_1 = np.load("../dataset/" + non_shifted_fname + "/melodies.npy")
 
         # reshape
         # chords_1 = chords_1.reshape(200, 1200, 128)
@@ -182,10 +196,17 @@ class DataPipeline:
         print("Loading takes {} seconds.".format(time.time() - t1))
         return chords_1, melodies_1
 
-    def __save_nottingham_piano_roll(self, start, end, i, FS=12):
-        MELODY_FNAME = '../dataset/Nottingham-midi/melody/'
-        CHORD_FNAME = '../dataset/Nottingham-midi/chords/'
-        SAVENAME = '../dataset/Nottingham-midi-dataset/'
+    def __save_nottingham_piano_roll(self, start, end, i, FS=12, is_shifted=True):
+        if not is_shifted:
+            self.__save_nottingham_piano_roll_impl(start, end, i, '../dataset/Nottingham-midi/melody/',
+                                              '../dataset/Nottingham-midi/chords/')
+        else:
+            self.__save_nottingham_piano_roll_impl(start, end, i, '../dataset/Nottingham-shifted-midi/melody/',
+                                              '../dataset/Nottingham-shifted-midi/chords/')
+
+    def __save_nottingham_piano_roll_impl(self, start, end, i, melody_fname, chord_fname, FS=12):
+        MELODY_FNAME = melody_fname
+        CHORD_FNAME = chord_fname
 
         filelist = os.listdir(CHORD_FNAME)
         melody_prs = []
@@ -238,4 +259,4 @@ class DataPipeline:
 
 if __name__ == "__main__":
     a = DataPipeline()
-    a.get_nottingham_piano_roll(is_small_set=False)
+    a.get_nottingham_piano_roll(is_small_set=False, is_reset=True)

@@ -94,7 +94,7 @@ class ChordToNoteGenerator:
         '''
         if src == 'nottingham':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_piano_roll()
+            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=True, is_shifted=True)
 
             # plt.imshow(chords[0])
             # plt.show()
