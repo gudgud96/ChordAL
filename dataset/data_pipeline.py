@@ -242,7 +242,7 @@ class DataPipeline:
     def __merge_nottingham_piano_roll(self):
         chords = np.load('chords-1.npy')
         melodies = np.load('melodies-1.npy')
-        for i in range(2, 5):
+        for i in range(2, 6):
             temp_c = np.load('chords-{}.npy'.format(i))
             temp_m = np.load('melodies-{}.npy'.format(i))
             chords = np.concatenate((chords, temp_c), axis=0)

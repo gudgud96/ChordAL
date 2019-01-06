@@ -100,6 +100,17 @@ class ChordGenerator:
         # print("X_test.shape:{} , Y_test.shape: {}".format(X_test.shape, Y_test.shape))
         return X_train, X_test, Y_train, Y_test
 
+    def build_model_architecture(self, num_seq, num_dim):
+        model = Sequential()
+        model.add(LSTM(64, return_sequences=True, input_shape=(num_seq, num_dim)))
+        model.add(Dropout(0.2))
+        model.add(Activation('relu'))
+        model.add(LSTM(128, return_sequences=False))
+        model.add(Dense(num_dim))
+        model.add(Activation('softmax'))
+
+        return model
+
     def build_model(self, X_train, X_test, Y_train, Y_test):
         '''
         Build the neural network model.
@@ -110,17 +121,10 @@ class ChordGenerator:
         '''
         num_seq, num_dim = X_train.shape[1], X_train.shape[2]
 
-        model = Sequential()
-        model.add(LSTM(64, return_sequences=True, input_shape=(num_seq, num_dim)))
-        model.add(Dropout(0.2))
-        model.add(Activation('relu'))
-        model.add(LSTM(128, return_sequences=False))
-        model.add(Dense(num_dim))
-        model.add(Activation('softmax'))
-
+        model = self.build_model_architecture(num_seq, num_dim)
         model.summary()
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        model.fit(X_train, Y_train, epochs=EPOCH_NUM)
+        history = model.fit(X_train, Y_train, epochs=EPOCH_NUM)
 
         scores = model.evaluate(X_train, Y_train, verbose=True)
         print('Train loss:', scores[0])
@@ -128,6 +132,9 @@ class ChordGenerator:
         scores = model.evaluate(X_test, Y_test, verbose=True)
         print('Test loss:', scores[0])
         print('Test accuracy:', scores[1])
+
+        plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
+        plt.savefig('training_graph.png')
 
         return model
 
@@ -178,10 +185,15 @@ class ChordGenerator:
         # prediction = model.predict_classes(predict_chord_oh)
         prediction_proba = model.predict(predict_chord_oh)
         prediction_random_sample = np.random.choice(NUM_CLASSES, 1, p=prediction_proba.flatten())[0]
+
+        # for now, use finite number - if i want 40 chords, should have 40 chords
+        while prediction_random_sample == 0:
+            prediction_random_sample = np.random.choice(NUM_CLASSES, 1, p=prediction_proba.flatten())[0]
+
         result = self.id_to_chord(prediction_random_sample)      # random sampling
         return result
 
-    def chords_to_midi(self, chords):
+    def chords_to_midi(self, chords, name='chords_to_midi.mid'):
         s = stream.Stream()
         for c in chords:
             if c == '-':
@@ -213,7 +225,7 @@ class ChordGenerator:
             temp_chord = chord.Chord(new_value_lst, duration=d)
             s.append(temp_chord)
 
-        fp = 'chords_to_midi.mid'
+        fp = name
         s.write('midi', fp=fp)
         return fp
 
@@ -250,39 +262,96 @@ class ChordGenerator:
         else:
             return DECODE_DICT[(idnum - 1) / 2] + ':' + MIN
 
+    def __normalize_to_c(self, chords):
+        for ch in chords:
+            if ch != '-':
+                first_chord = ch
+                break
+        first_key, first_tonality = first_chord.split(':')
+        first_key_index = CHORD_DICT[first_key]
+        key_of_c = 1
+        diff = first_key_index - key_of_c
+        if diff > 0:
+            for i in range(len(chords)):
+                c = chords[i]
+                if c != '-':
+                    k, tonality = c.split(':')
+                    key_index = CHORD_DICT[k]
+                    transposed_key_index = key_index - diff
+                    if transposed_key_index <= 0:
+                        transposed_key_index += 12
+                    transposed_key = DECODE_DICT[transposed_key_index]
+                    chords[i] = ':'.join([transposed_key, tonality])
+        return chords
+
+    def __unnormalize_from_c(self, chords, first_key_original):
+        for ch in chords:
+            if ch != '-':
+                first_chord = ch
+                break
+        first_key, first_tonality = first_chord.split(':')
+        first_key_index = CHORD_DICT[first_key]
+        key_of_original = CHORD_DICT[first_key_original]
+        diff = key_of_original - first_key_index
+        if diff > 0:
+            for i in range(len(chords)):
+                c = chords[i]
+                if c != '-':
+                    k, tonality = c.split(':')
+                    key_index = CHORD_DICT[k]
+                    transposed_key_index = key_index + diff
+                    if transposed_key_index > 12:
+                        transposed_key_index -= 12
+                    transposed_key = DECODE_DICT[transposed_key_index]
+                    chords[i] = ':'.join([transposed_key, tonality])
+        return chords
+
     def generate_chords(self, example_chord=None, num_of_chords=32, is_retrain=False):
         X_train, X_test, Y_train, Y_test = self.preprocess_data(TT_SPLIT, is_small_dataset=False)
         if 'normalized' in self.train_file:
-            if os.path.exists('../chord/chord_model_normalized.h5') and not is_retrain:
-                print('Loading chord_model.h5...')
-                model = load_model('../chord/chord_model_normalized.h5')
+            if os.path.exists('../chord/chord_weights_normalized.h5') and not is_retrain:
+                print('Loading chord_weights_normalized.h5...')
+                model = self.build_model_architecture(X_train.shape[1], X_train.shape[2])
+                model.load_weights('../chord/chord_weights_normalized.h5')
             else:
                 model = self.build_model(X_train, X_test, Y_train, Y_test)
-                model.save('../chord/chord_model_normalized.h5')
+                model.save_weights('../chord/chord_weights_normalized.h5')
 
         else:
-            if os.path.exists('../chord/chord_model.h5') and not is_retrain:
-                print('Loading chord_model.h5...')
-                model = load_model('../chord/chord_model.h5')
+            if os.path.exists('../chord/chord_weights_unnormalized.h5') and not is_retrain:
+                print('Loading chord_weights_unnormalized.h5...')
+                model = self.build_model_architecture(X_train.shape[1], X_train.shape[2])
+                model.load_weights('../chord/chord_weights_unnormalized.h5')
             else:
                 model = self.build_model(X_train, X_test, Y_train, Y_test)
-                model.save('../chord/chord_model.h5')
+                model.save_weights('../chord/chord_weights_unnormalized.h5')
 
         if not example_chord:
             # if no example chord sequence is provided, randomly generate one from train data
             index = random.randint(0, 100)
             example_chord = open(self.train_file).readlines()[index].split(' > ')
             example_chord = example_chord[:8]
+            first_chord = example_chord[0].split(':')[0]
 
         else:
             # if given example chord sequence length < TIME_FRAME, pad with zeros
+            for ch in example_chord:
+                if ch != '-':
+                    first_chord = ch
+                    break
+            first_chord = first_chord.split(':')[0]
             if len(example_chord) < TIME_FRAME:
                 for i in range(TIME_FRAME - len(example_chord)):
                     example_chord.insert(0, '-')
             else:
                 example_chord = example_chord[:TIME_FRAME]
 
-        return self.__generate_chord_from_seed(example_chord, model, num_of_chords)
+        if 'normalized' in self.train_file:
+            result_chord = self.__generate_chord_from_seed(self.__normalize_to_c(example_chord), model,
+                                                   num_of_chords)
+            return self.__unnormalize_from_c(result_chord, first_chord)
+        else:
+            return self.__generate_chord_from_seed(example_chord, model, num_of_chords)
 
     def evaluate_chord_variation_coefficient(self, chords):
         '''
@@ -301,16 +370,31 @@ class ChordGenerator:
         for chord in chords:
             if chord not in count_dict:
                 count_dict[chord] = chords.count(chord)
-        print("Chord variation: {}".format(count_dict))
-        print("Chord variation coefficient: {}".format(1 - len(list(count_dict.keys())) / len(chords)))
-        print("Chord distribution variance: {}".format(np.var(list(count_dict.values()))))
+
+        variation_coefficient = 1 - len(list(count_dict.keys())) / len(chords)
+        chord_distribution_sd = np.sqrt(np.var(list(count_dict.values())))
+
+        return count_dict, variation_coefficient, chord_distribution_sd
 
 
 if __name__ == "__main__":
-    # chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
+    f = open('chords_experiment.txt', 'a+')
+    seed_chord = ['C:maj', 'A:min', 'F:maj', 'G:maj']
+    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
+    for i in range(10):
+        result = chord_generator.generate_chords(seed_chord)
+        print(result)
+        f.write(str(result) + '\n')
+        chord_generator.evaluate_chord_variation_coefficient(result)
+        chord_generator.chords_to_midi(result, 'chord-unnormalized-{}.mid'.format(i + 1))
+    print()
+    f.write('\n')
     chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE_SHIFTED)
-    chord_generator.generate_chords()
-    # result = chord_generator.generate_chords(['G:min', 'D:maj', 'Eb:maj'])
-    # print(result)
-    # chord_generator.evaluate_chord_variation_coefficient(result)
-    # chord_generator.chords_to_midi(result)
+    for i in range(10):
+        result = chord_generator.generate_chords(seed_chord)
+        print(result)
+        f.write(str(result) + '\n')
+        chord_generator.evaluate_chord_variation_coefficient(result)
+        chord_generator.chords_to_midi(result, 'chord-normalized-{}.mid'.format(i + 1))
+
+    # chord_generator.generate_chords()

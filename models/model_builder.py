@@ -9,7 +9,7 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -79,7 +79,7 @@ class ModelBuilder:
                 batch_size=batch_size,
                 validation_data=(self.X_test, self.X_test))
 
-        plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
+        t(range(len(history.history['loss'])), history.history['loss'], label='train loss')
         plt.show()
 
         return vae, encoder, generator
@@ -124,8 +124,9 @@ class ModelBuilder:
         '''
         print(input_dim)
         model = Sequential()
-        model.add(GRU(64, return_sequences=True, input_shape=input_dim))
-        model.add(GRU(128, return_sequences=True))
+        # added reset after flag for CuDNN compatibility purpose
+        model.add(GRU(64, return_sequences=True, input_shape=input_dim, reset_after=True))
+        model.add(GRU(128, return_sequences=True, reset_after=True))
         model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(input_dim[-1])))

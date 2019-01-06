@@ -9,6 +9,8 @@ Improvements needed:
 
 import os
 from keras.models import load_model
+from tqdm import tqdm
+
 from utils import piano_roll_to_pretty_midi
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
@@ -32,31 +34,46 @@ class ChordToNoteGenerator:
         :param model_name: specify which model we are training
         :return: None. Model is assigned as self.model for this generator
         '''
-        # Load data
-        chords, melodies = self.__get_raw_data()
-        chords, melodies = self.__process_raw_data(chords, melodies)
-        # unique, counts = np.unique(chords, return_counts=True)
-        # print(dict(zip(unique, counts)))
-        print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
-
         # Train test split
         self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name)
+        print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
 
         # Load / train model
         if model_name == 'basic_rnn':
             if os.path.exists("basic_rnn.h5"):
-                model = load_model("basic_rnn.h5")
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:])
+                model.load_weights("basic_rnn.h5")
+
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
-                model.save("basic_rnn.h5")
+                model.save_weights("basic_rnn.h5")
 
         self.model = model
 
-    def load_model(self, model_name):
-        if model_name == 'basic_rnn':
-            self.model = load_model('../note/basic_rnn.h5')
+    def load_model(self, model_name, tt_split=0.9, is_fast_load=True):
+        if not is_fast_load:
+            # Train test split
+            self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name)
+            print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
+
+        if model_name == 'basic_rnn_normalized':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_basic_rnn_model(input_dim=(1200,128))
+            self.model.load_weights('../note/basic_rnn_weights_500.h5')
+
+        elif model_name == 'basic_rnn_unnormalized':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_basic_rnn_model(input_dim=(1200,128))
+            self.model.load_weights('../note/basic_rnn_weights_500_unnormalized.h5')
         else:
             print('No model name: {}'.format(model_name))
 
@@ -123,6 +140,7 @@ class ChordToNoteGenerator:
 
     def __prepare_data_tt_splited(self, tt_split=0.9, src='nottingham', model_name='basic_rnn'):
         chords, melodies = self.__get_raw_data(src=src, model_name=model_name)
+        chords, melodies = self.__process_raw_data(chords, melodies)
         split_ind = int(tt_split * len(chords))
         self.X_train, self.Y_train, self.X_test, self.Y_test = chords[:split_ind], \
                                                                melodies[:split_ind], \
@@ -130,25 +148,34 @@ class ChordToNoteGenerator:
                                                                melodies[split_ind:]
 
 
-if __name__ == "__main__":
+def test_against_test_data():
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=200)
-    ind = 10
+    generator.load_model('basic_rnn_unnormalized', is_fast_load=False)
 
-    chords = np.transpose(generator.X_test[ind], (1,0))
-    from utils import piano_roll_to_pretty_midi
+    def generate(generator, ind):
+        chords = np.transpose(generator.X_test[ind], (1, 0))
+        from utils import piano_roll_to_pretty_midi
 
-    chords_temp = np.copy(chords)
-    chords_temp[chords_temp > 0] = 90
-    c_midi = piano_roll_to_pretty_midi(chords_temp, fs=12)
-    c_midi.write('chord.mid')
+        chords_temp = np.copy(chords)
+        chords_temp[chords_temp > 0] = 90
+        c_midi = piano_roll_to_pretty_midi(chords_temp, fs=12)
+        c_midi.write('chord-{}.mid'.format(ind))
 
-    generator.generate_notes_from_chord(chords=chords)
-    from generator.song_generator import merge_melody_with_chords
-    merge_melody_with_chords('melody.mid', 'chord.mid', 'song.mid')
+        generator.generate_notes_from_chord(chords=chords)
+        from generator.song_generator import merge_melody_with_chords
+        os.rename('melody.mid', 'melody-{}.mid'.format(ind))
+        merge_melody_with_chords('melody-{}.mid'.format(ind), 'chord-{}.mid'.format(ind), 'song-{}.mid'.format(ind))
 
-    actual = np.transpose(generator.Y_test[ind], (1, 0))
-    actual[actual > 0] = 90
-    a_midi = piano_roll_to_pretty_midi(actual, fs=12)
-    a_midi.write('actual.mid')
-    merge_melody_with_chords('actual.mid', 'chord.mid', 'song-actual.mid')
+        actual = np.transpose(generator.Y_test[ind], (1, 0))
+        actual[actual > 0] = 90
+        a_midi = piano_roll_to_pretty_midi(actual, fs=12)
+        a_midi.write('actual-{}.mid'.format(ind))
+        merge_melody_with_chords('actual-{}.mid'.format(ind), 'chord-{}.mid'.format(ind),
+                                 'song-actual-{}.mid'.format(ind))
+
+    for ind in tqdm(range(10, 20)):
+        generate(generator, ind)
+
+
+if __name__ == "__main__":
+    test_against_test_data()
