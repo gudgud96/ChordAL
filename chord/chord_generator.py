@@ -18,7 +18,7 @@ from keras.layers import TimeDistributed
 from music21 import *
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
-from keras.layers.recurrent import LSTM
+from keras.layers import CuDNNLSTM
 from keras.utils.np_utils import to_categorical
 from keras.models import load_model
 import os
@@ -38,8 +38,8 @@ DECODE_DICT = {
 }
 MAJ, MIN = ["maj", "min"]   # major is even and minor is +1 odd. Hence Cmaj=2, Cmin=3, C#maj=4 and etc.
 TIME_FRAME = 8              # 8 notes timeframe, train by sliding window
-NUM_CLASSES = 26            # 2-25 for major and minor, 0 for None, 1 is not used
-EPOCH_NUM = 5               # number of epochs for training
+NUM_CLASSES = 26            # 2-25 for major and minor, 0 for None, 1 is not user
+EPOCH_NUM = 50            # number of epochs for training
 
 
 class ChordGenerator:
@@ -111,16 +111,16 @@ class ChordGenerator:
         num_seq, num_dim = X_train.shape[1], X_train.shape[2]
 
         model = Sequential()
-        model.add(LSTM(64, return_sequences=True, input_shape=(num_seq, num_dim)))
+        model.add(CuDNNLSTM(64, return_sequences=True, input_shape=(num_seq, num_dim)))
         model.add(Dropout(0.2))
         model.add(Activation('relu'))
-        model.add(LSTM(128, return_sequences=False))
+        model.add(CuDNNLSTM(128, return_sequences=False))
         model.add(Dense(num_dim))
         model.add(Activation('softmax'))
 
         model.summary()
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        model.fit(X_train, Y_train, epochs=EPOCH_NUM)
+        history =  model.fit(X_train, Y_train, epochs=EPOCH_NUM)
 
         scores = model.evaluate(X_train, Y_train, verbose=True)
         print('Train loss:', scores[0])
@@ -128,6 +128,9 @@ class ChordGenerator:
         scores = model.evaluate(X_test, Y_test, verbose=True)
         print('Test loss:', scores[0])
         print('Test accuracy:', scores[1])
+        plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
+        plt.savefig('training_graph.png')
+
 
         return model
 
@@ -308,7 +311,7 @@ class ChordGenerator:
 
 if __name__ == "__main__":
     # chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
-    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE_SHIFTED)
+    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
     chord_generator.generate_chords()
     # result = chord_generator.generate_chords(['G:min', 'D:maj', 'Eb:maj'])
     # print(result)

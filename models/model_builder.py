@@ -9,8 +9,9 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, CuDNNLSTM
 from keras import backend as K
+from keras.optimizers import Adam
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
@@ -124,8 +125,8 @@ class ModelBuilder:
         '''
         print(input_dim)
         model = Sequential()
-        model.add(GRU(64, return_sequences=True, input_shape=input_dim))
-        model.add(GRU(128, return_sequences=True))
+        model.add(CuDNNLSTM(64, return_sequences=True, input_shape=input_dim))
+        model.add(CuDNNLSTM(128, return_sequences=True))
         model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(input_dim[-1])))
@@ -174,18 +175,24 @@ class ModelBuilder:
             "binary_crossentropy": ['binary_accuracy'],
             "categorical_crossentropy": ['categorical_accuracy']
         }
-        model.compile(loss=loss, optimizer='adam', metrics=loss_metrics_dict[loss])
-        history = model.fit(self.X_train, self.Y_train, epochs=epochs)
-
+        optimizer = Adam(clipnorm=1.0)
+        model.compile(loss=loss, optimizer=optimizer, metrics=loss_metrics_dict[loss])
+        history = model.fit(self.X_train, self.Y_train, validation_data=(self.X_test, self.Y_test), epochs=epochs)
         scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
         print('Train loss:', scores[0])
         print('Train accuracy:', scores[1])
+        train_loss, train_acc = scores[0], scores[1]
+
         scores = model.evaluate(self.X_test, self.Y_test, verbose=True)
         print('Test loss:', scores[0])
         print('Test accuracy:', scores[1])
+        test_loss, test_acc = scores[0], scores[1]
 
         plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
-        plt.show()
+        plt.savefig('loss_train.png')
+        plt.plot(range(len(history.history['val_loss'])), history.history['val_loss'], label='test loss')
+        plt.savefig('loss_test.png')
+        open('train_test_accuracy.txt', 'w+').write('Train acc - {} Train loss - {}\nTest acc - {} Test loss - {}'.format(train_acc, train_loss, test_acc, test_loss))
 
         return model
 

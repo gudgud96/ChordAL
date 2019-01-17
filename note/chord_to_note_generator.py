@@ -6,6 +6,8 @@ Purpose:    Chord to note generator.
 Improvements needed:
 (/) - Include Basic RNN model.
 '''
+import sys,os
+sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 
 import os
 from keras.models import load_model
@@ -33,14 +35,16 @@ class ChordToNoteGenerator:
         :return: None. Model is assigned as self.model for this generator
         '''
         # Load data
-        chords, melodies = self.__get_raw_data()
-        chords, melodies = self.__process_raw_data(chords, melodies)
+        # chords, melodies = self.__get_raw_data()
+        # chords, melodies = self.__process_raw_data(chords, melodies)
         # unique, counts = np.unique(chords, return_counts=True)
         # print(dict(zip(unique, counts)))
-        print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
+        # print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
 
         # Train test split
         self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name)
+        # print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
+
 
         # Load / train model
         if model_name == 'basic_rnn':
@@ -94,7 +98,7 @@ class ChordToNoteGenerator:
         '''
         if src == 'nottingham':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=True, is_shifted=True)
+            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=False, is_shifted=False)
 
             # plt.imshow(chords[0])
             # plt.show()
@@ -132,23 +136,23 @@ class ChordToNoteGenerator:
 
 if __name__ == "__main__":
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=200)
-    ind = 10
+    generator.train_chord_to_melody_model(epochs=5000)
+    #ind = 10
 
-    chords = np.transpose(generator.X_test[ind], (1,0))
-    from utils import piano_roll_to_pretty_midi
+    #chords = np.transpose(generator.X_test[ind], (1,0))
+    #from utils import piano_roll_to_pretty_midi
 
-    chords_temp = np.copy(chords)
-    chords_temp[chords_temp > 0] = 90
-    c_midi = piano_roll_to_pretty_midi(chords_temp, fs=12)
-    c_midi.write('chord.mid')
+    #chords_temp = np.copy(chords)
+    #chords_temp[chords_temp > 0] = 90
+    #c_midi = piano_roll_to_pretty_midi(chords_temp, fs=12)
+    #c_midi.write('chord.mid')
 
-    generator.generate_notes_from_chord(chords=chords)
-    from generator.song_generator import merge_melody_with_chords
-    merge_melody_with_chords('melody.mid', 'chord.mid', 'song.mid')
+    #generator.generate_notes_from_chord(chords=chords)
+    #from generator.song_generator import merge_melody_with_chords
+    #merge_melody_with_chords('melody.mid', 'chord.mid', 'song.mid')
 
-    actual = np.transpose(generator.Y_test[ind], (1, 0))
-    actual[actual > 0] = 90
-    a_midi = piano_roll_to_pretty_midi(actual, fs=12)
-    a_midi.write('actual.mid')
-    merge_melody_with_chords('actual.mid', 'chord.mid', 'song-actual.mid')
+    #actual = np.transpose(generator.Y_test[ind], (1, 0))
+    #actual[actual > 0] = 90
+    #a_midi = piano_roll_to_pretty_midi(actual, fs=12)
+    #a_midi.write('actual.mid')
+    #merge_melody_with_chords('actual.mid', 'chord.mid', 'song-actual.mid')

@@ -11,6 +11,7 @@ Improvements needed:
 ( ) - For VAE, how to generate for not copying the training data??
 ( ) - Data used is not enough. When code structure is more flexible, should incorporate more data.
 '''
+import sys
 import os
 
 from keras import Sequential, Input, Model
