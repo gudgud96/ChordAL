@@ -21,55 +21,14 @@
       <h2>Chord-based AI Music Composition</h2>
       <p>A visualizer for chord-based music generation.</p>
       <ul class="nav nav-tabs">
-        <li><a data-toggle="tab" href="#home">RNN</a></li>
-        <li><a data-toggle="tab" href="#menu1">CNN</a></li>
-        <li><a data-toggle="tab" href="#menu2">VAE</a></li>
-        <li><a data-toggle="tab" href="#menu3">GAN</a></li>
+        <li><a data-toggle="tab" href="#home">Generation</a></li>
+        <!--<li><a data-toggle="tab" href="#result">Result</a></li>-->
         <li class="active"><a data-toggle="tab" href="#turing">Musical Turing Test</a></li>
       </ul>
 
       <div class="tab-content">
         <div id="home" class="tab-pane fade">
-          <h3>RNN</h3>
-          <p>Basic RNN model.</p>
-            <div>
-                <form action="/play" method="post">
-                    <div class="form-group row">
-                        <label class="col-sm-2 col-form-label">Chord</label>
-                        <div class="col-sm-10">
-                            <input type="text" name="chords">
-                        </div>
-                    </div>
-                    <div class="form-group row">
-                        <label class="col-sm-2 col-form-label">Number of bars</label>
-                        <div class="col-sm-10">
-                            <input type="text" name="bar_number">
-                        </div>
-                    </div>
-                    <button name="forwardBtn" type="submit" class="btn btn-primary" onclick="document.get.show();">Generate</button>
-                </form>
-
-                <!--{% with messages = get_flashed_messages() %}-->
-                    <!--{% for m in messages %}-->
-                        <!--<p>{{ m }}</p>-->
-                    <!--{% endfor %}-->
-                <!--{% endwith %}-->
-
-                {% block content %}{% endblock %}
-
-            </div>
-        </div>
-        <div id="menu1" class="tab-pane fade">
-          <h3>Menu 1</h3>
-          <p>Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
-        </div>
-        <div id="menu2" class="tab-pane fade">
-          <h3>Menu 2</h3>
-          <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam.</p>
-        </div>
-        <div id="menu3" class="tab-pane fade">
-          <h3>Menu 3</h3>
-          <p>Eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+          {% include 'generation.html' %}
         </div>
         <div id="turing" class="tab-pane fade in active">
           <h3>Musical Turing Test</h3>
@@ -78,21 +37,43 @@
           {% include 'turing.html' %}
           <br/>
           <h4>Thank you for taking the test! Here are your results:</h4>
-            <p><b>Your answer:</b></p>
-            <p><b>Song 1</b> - {{ song1_user }}</p>
-            <p><b>Song 2</b> - {{ song2_user }}</p>
-            <p><b>Song 3</b> - {{ song3_user }}</p>
-            <p><b>Song 4</b> - {{ song4_user }}</p>
-            <p><b>Song 5</b> - {{ song5_user }}</p>
-
-            <p><b>Actual answer:</b></p>
-            <p><b>Song 1</b> - {{ song1_ans }}</p>
-            <p><b>Song 2</b> - {{ song2_ans }}</p>
-            <p><b>Song 3</b> - {{ song3_ans }}</p>
-            <p><b>Song 4</b> - {{ song4_ans }}</p>
-            <p><b>Song 5</b> - {{ song5_ans }}</p>
-
-          <br/>
+          <table class="table col-sm-8">
+              <thead class="thead-dark">
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Your Answer</th>
+                  <th scope="col">Actual Answer</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">1</th>
+                  <td>{{ song1_user }}</td>
+                  <td>{{ song1_ans }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">2</th>
+                  <td>{{ song2_user }}</td>
+                  <td>{{ song2_ans }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">3</th>
+                  <td>{{ song3_user }}</td>
+                  <td>{{ song3_ans }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">4</th>
+                  <td>{{ song4_user }}</td>
+                  <td>{{ song4_ans }}</td>
+                </tr>
+                <tr>
+                  <th scope="row">5</th>
+                  <td>{{ song5_user }}</td>
+                  <td>{{ song5_ans }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <br/>
             <p>You have identified <b>{{ ai_as_human }}</b> AI generated songs as human composition.</p>
             <p>You have identified <b>{{ human_as_ai }}</b> human composition as AI generated songs.</p>
           <br/>
@@ -103,4 +84,3 @@
 
 </body>
 </html>
-<script type='text/javascript' src='http://www.midijs.net/lib/midi.js'></script>

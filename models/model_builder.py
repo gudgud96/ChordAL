@@ -125,8 +125,8 @@ class ModelBuilder:
         print(input_dim)
         model = Sequential()
         # added reset after flag for CuDNN compatibility purpose
-        model.add(GRU(64, return_sequences=True, input_shape=input_dim, reset_after=True))
-        model.add(GRU(128, return_sequences=True, reset_after=True))
+        model.add(LSTM(64, return_sequences=True, input_shape=input_dim))
+        model.add(LSTM(128, return_sequences=True))
         model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(input_dim[-1])))

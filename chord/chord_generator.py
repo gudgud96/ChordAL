@@ -193,37 +193,53 @@ class ChordGenerator:
         result = self.id_to_chord(prediction_random_sample)      # random sampling
         return result
 
-    def chords_to_midi(self, chords, name='chords_to_midi.mid'):
+    def chords_to_midi(self, chords, name='chords_to_midi.mid', is_chord=True):
+        '''
+
+        :param chords:
+        :param name:
+        :param is_chord:
+            If is_chord is True, generate chords midi; else, generate note bassline midi
+        :return:
+        '''
         s = stream.Stream()
         for c in chords:
             if c == '-':
                 continue        # TODO: Not a good strategy
-            note, quality = c.split(':')
-            note_value = CHORD_DICT[note]
-            if quality == 'maj':
-                value_lst = [note_value, (note_value + 4) % 12, (note_value + 7) % 12]
-            else:
-                value_lst = [note_value, (note_value + 3) % 12, (note_value + 7) % 12]
+            note_name, quality = c.split(':')
+            note_value = CHORD_DICT[note_name]
 
-            for i in range(len(value_lst)):
-                if value_lst[i] == 0:
-                    value_lst[i] = 12
-
-            if value_lst[1] > value_lst[0]:
-                if value_lst[2] > value_lst[1]:
-                    octave_lst = [3,3,3]
+            # generate chords midi
+            if is_chord:
+                if quality == 'maj':
+                    value_lst = [note_value, (note_value + 4) % 12, (note_value + 7) % 12]
                 else:
-                    octave_lst = [3,3,4]
+                    value_lst = [note_value, (note_value + 3) % 12, (note_value + 7) % 12]
+
+                for i in range(len(value_lst)):
+                    if value_lst[i] == 0:
+                        value_lst[i] = 12
+
+                if value_lst[1] > value_lst[0]:
+                    if value_lst[2] > value_lst[1]:
+                        octave_lst = [3,3,3]
+                    else:
+                        octave_lst = [3,3,4]
+                else:
+                    octave_lst = [2,3,3]
+
+                new_value_lst = []
+                for i in range(len(value_lst)):
+                    new_value_lst.append(DECODE_DICT[value_lst[i]] + str(octave_lst[i]))
+
+                d = duration.Duration(4)    # whole note length
+                temp_chord = chord.Chord(new_value_lst, duration=d)
+                s.append(temp_chord)
+
+            # generate bass note midi
             else:
-                octave_lst = [2,3,3]
-
-            new_value_lst = []
-            for i in range(len(value_lst)):
-                new_value_lst.append(DECODE_DICT[value_lst[i]] + str(octave_lst[i]))
-
-            d = duration.Duration(4)    # whole note length
-            temp_chord = chord.Chord(new_value_lst, duration=d)
-            s.append(temp_chord)
+                bass_note = note.Note(note_name + '1')
+                s.append(bass_note)
 
         fp = name
         s.write('midi', fp=fp)

@@ -65,7 +65,7 @@ class ChordToNoteGenerator:
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
             self.model = mb.build_basic_rnn_model(input_dim=(1200,128))
-            self.model.load_weights('../note/basic_rnn_weights_500.h5')
+            self.model.load_weights('../note/basic_rnn_weights_1000.h5')
 
         elif model_name == 'basic_rnn_unnormalized':
             if is_fast_load:
