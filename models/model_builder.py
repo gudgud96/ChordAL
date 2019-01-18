@@ -9,9 +9,11 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, CuDNNLSTM, Bidirectional
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, CuDNNLSTM, Bidirectional, Embedding
 from keras import backend as K
 from keras.optimizers import Adam
+
+from chord.chord_generator import NUM_CLASSES
 from models.keras_attention_wrapper import AttentionDecoder
 import matplotlib.pyplot as plt
 
@@ -22,32 +24,6 @@ class ModelBuilder:
         self.X_test = X_test
         self.Y_train = Y_train
         self.Y_test = Y_test
-
-    def build_seq2seq_model(self, num_encoder_tokens, num_decoder_tokens, latent_dim):
-
-        # Define an input sequence and process it.
-        encoder_inputs = Input(shape=(None, num_encoder_tokens))
-        encoder = LSTM(latent_dim, return_state=True)
-        encoder_outputs, state_h, state_c = encoder(encoder_inputs)
-
-        # We discard `encoder_outputs` and only keep the states.
-        encoder_states = [state_h, state_c]
-
-        # Set up the decoder, using `encoder_states` as initial state.
-        decoder_inputs = Input(shape=(None, num_decoder_tokens))
-        # We set up our decoder to return full output sequences,
-        # and to return internal states as well. We don't use the
-        # return states in the training model, but we will use them in inference.
-        decoder_lstm = LSTM(latent_dim, return_sequences=True, return_state=True)
-        decoder_outputs, _, _ = decoder_lstm(decoder_inputs,
-                                             initial_state=encoder_states)
-        decoder_dense = Dense(num_decoder_tokens, activation='softmax')
-        decoder_outputs = decoder_dense(decoder_outputs)
-
-        # Define the model that will turn
-        # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
-        model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
-        return model
 
     def build_stacked_autoencoder(self, input_dim, intermediate_dim):
         '''
@@ -136,16 +112,16 @@ class ModelBuilder:
     def build_bidirectional_rnn_model(self, input_dim):
         '''
         Build bidirectional RNN model using LSTMs.
-        :param input_dim: nput dimension, normally (100, 128 * 12)
+        :param input_dim: input dimension, normally (100, 128 * 12)
         :return: model
         '''
-        print(input_dim)
         model = Sequential()
-        model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(Bidirectional(LSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(TimeDistributed(Dense(input_dim[-1])))
+        model.add(TimeDistributed(Dense(128)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
         return model
 
@@ -157,10 +133,11 @@ class ModelBuilder:
         '''
         print(input_dim)
         model = Sequential()
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
         model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
         model.add(Dropout(0.2))
         model.add(Bidirectional(LSTM(128, return_sequences=True)))
-        model.add(AttentionDecoder(128, input_dim[-1]))     # not sure if this is correct
+        model.add(AttentionDecoder(128, 128))     # not sure if this is correct
         return model
 
     def build_basic_conv2d_rnn_model(self, input_dim, use_dropout=False):

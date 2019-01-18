@@ -42,9 +42,8 @@ class ChordToNoteGenerator:
         # print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
 
         # Train test split
-        self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name)
+        self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src="nottingham-embed")
         # print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
-
 
         # Load / train model
         if model_name == 'basic_rnn':
@@ -52,7 +51,7 @@ class ChordToNoteGenerator:
                 model = load_model("basic_rnn.h5")
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save("basic_rnn.h5")
 
@@ -111,22 +110,32 @@ class ChordToNoteGenerator:
             msparsity = 1.0 - np.count_nonzero(melodies) / melodies.size
             print(csparsity, msparsity)
             cshape, mshape = chords.shape, melodies.shape
+            chords, melodies = self.__process_raw_data(chords, melodies, model=model_name)
             print(chords.shape, melodies.shape)
 
-        else:
-            pass
+        elif src == 'nottingham-embed':
+            dp = DataPipeline()
+            chords, melodies = dp.get_nottingham_embed(is_small_set=True)
+            melodies[melodies > 0] = 1
+            cshape, mshape = chords.shape, melodies.shape
+            print(chords.shape, melodies.shape)
 
-        chords, melodies = self.__process_raw_data(chords, melodies, model=model_name)
         return chords, melodies
 
     def __process_raw_data(self, chords, melodies, model='basic_rnn'):
         if model == 'basic_rnn':
             chords, melodies = np.transpose(chords, (0, 2, 1)), np.transpose(melodies, (0, 2, 1))
+        elif model == 'basic_rnn_embed':
+            melodies = np.transpose(melodies, (0, 2, 1))
 
         return chords, melodies
 
     def __prepare_data_tt_splited(self, tt_split=0.9, src='nottingham', model_name='basic_rnn'):
         chords, melodies = self.__get_raw_data(src=src, model_name=model_name)
+        if src == 'nottingham-embed':
+            chords, melodies = self.__process_raw_data(chords, melodies, model='basic_rnn_embed')
+        else:
+            chords, melodies = self.__process_raw_data(chords, melodies, model='basic_rnn')
         split_ind = int(tt_split * len(chords))
         self.X_train, self.Y_train, self.X_test, self.Y_test = chords[:split_ind], \
                                                                melodies[:split_ind], \

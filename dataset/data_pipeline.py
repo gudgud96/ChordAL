@@ -196,6 +196,35 @@ class DataPipeline:
         print("Loading takes {} seconds.".format(time.time() - t1))
         return chords_1, melodies_1
 
+    def get_nottingham_embed(self, is_small_set=True):
+        '''
+        Public method to get Nottingham Dataset embed.
+        :param is_reset: to reset all saved data or not
+        :param is_small_set: whether to get the small set
+        :return: chords tensors and melodies tensors of shape (x, 100, 128, 12)
+        '''
+        print("Loading Nottingham Embed...")
+        shifted_fname = "Nottingham-Piano-shifted"
+        t1 = time.time()
+        if is_small_set:
+            print('Loading from {}'.format("../dataset/" + shifted_fname))
+            chords_1 = np.load("../dataset/" + shifted_fname + "/chords-1-embedded.npy")
+            melodies_1 = np.load("../dataset/" + shifted_fname + "/melodies-1.npy")
+
+        else:
+            print('Loading from {}'.format("../dataset/" + shifted_fname))
+            chords_1 = np.load("../dataset/" + shifted_fname + "/chords-embedded.npy")
+            melodies_1 = np.load("../dataset/" + shifted_fname + "/melodies.npy")
+
+        # reshape
+        # chords_1 = chords_1.reshape(200, 1200, 128)
+        # melodies_1 = melodies_1.reshape(200, 1200, 128)
+
+        print(chords_1.shape)
+        print(melodies_1.shape)
+        print("Loading takes {} seconds.".format(time.time() - t1))
+        return chords_1, melodies_1
+
     def __save_nottingham_piano_roll(self, start, end, i, FS=12, is_shifted=True):
         if not is_shifted:
             self.__save_nottingham_piano_roll_impl(start, end, i, '../dataset/Nottingham-midi/melody/',
@@ -239,10 +268,53 @@ class DataPipeline:
         np.save('melodies-{}.npy'.format(i), melody_prs)
         np.save('chords-{}.npy'.format(i), chord_prs)
 
+    def convert_nottingham_chords_to_indices(self):
+        chords = np.load('../dataset/Nottingham-Piano-shifted/chords.npy')
+        new_chords = []
+        for i in tqdm(range(len(chords))):
+            chord = np.transpose(chords[i], (1, 0))
+            chord = self.convert_chord_to_indices(chord)
+            new_chords.append(chord)
+
+        new_chords = np.array(new_chords)
+        np.save('chords-embedded.npy', new_chords)
+
+    def convert_chord_to_indices(self, chord):
+        chord_index_dict = {
+            (36, 40): "C:maj", (36, 39): "C:min",
+            (37, 41): "C#:maj", (37, 40): "C#:min",
+            (38, 42): "D:maj", (38, 41): "D:min",
+            (39, 43): "D#:maj", (39, 42): "D#:min",
+            (40, 44): "E:maj", (40, 43): "E:min",
+            (41, 45): "F:maj", (41, 44): "F:min",
+            (42, 46): "F#:maj", (42, 45): "F#:min",
+            (43, 47): "G:maj", (43, 46): "G:min",
+            (44, 48): "G#:maj", (44, 47): "G#:min",
+            (45, 49): "A:maj", (45, 48): "A:min",
+            (46, 50): "A#:maj", (46, 49): "A#:min",
+            (47, 51): "B:maj", (47, 50): "B:min",
+            (0, 0, 0): "-"
+        }
+        new_chord = []
+        for i in range(len(chord)):
+            chord_t = chord[i]
+            indices = np.where(chord_t > 0)[0]
+            cg = ChordGenerator()
+            if indices.size == 0:
+                value = cg.chord_to_id(chord_index_dict[tuple(np.array([0, 0, 0]))])
+                new_chord.append(value)
+            else:
+                value = cg.chord_to_id(chord_index_dict[tuple(indices[:2])])
+                new_chord.append(value)
+
+        return np.array(new_chord)
+
+
+
     def __merge_nottingham_piano_roll(self):
         chords = np.load('chords-1.npy')
         melodies = np.load('melodies-1.npy')
-        for i in range(2, 5):
+        for i in range(2, 6):
             temp_c = np.load('chords-{}.npy'.format(i))
             temp_m = np.load('melodies-{}.npy'.format(i))
             chords = np.concatenate((chords, temp_c), axis=0)
@@ -259,4 +331,5 @@ class DataPipeline:
 
 if __name__ == "__main__":
     a = DataPipeline()
-    a.get_nottingham_piano_roll(is_small_set=False, is_reset=True)
+    # a.get_nottingham_piano_roll(is_small_set=False, is_reset=True)
+    a.convert_nottingham_chords_to_indices()

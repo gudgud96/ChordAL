@@ -1,4 +1,5 @@
-from chord.generator.chord_generator import ChordGenerator
+from chord.chord_generator import ChordGenerator
+
 
 def chord_to_id_test():
     cg = ChordGenerator('')
@@ -8,6 +9,7 @@ def chord_to_id_test():
     assert cg.chord_to_id("D:sus") == 6
     assert cg.chord_to_id("F:min(5)") == 13
 
+
 def id_to_chord_test():
     cg = ChordGenerator('')
     assert cg.id_to_chord(22) == "A#:maj"
@@ -15,3 +17,9 @@ def id_to_chord_test():
     assert cg.id_to_chord(14) == "F#:maj"
     assert cg.id_to_chord(6) == "D:maj"
     assert cg.id_to_chord(13) == "F:min"
+
+
+if __name__ == '__main__':
+    chord_to_id_test()
+    id_to_chord_test()
+    print('All passed.')
