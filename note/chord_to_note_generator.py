@@ -52,7 +52,7 @@ class ChordToNoteGenerator:
                 model = load_model("basic_rnn.h5")
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save("basic_rnn.h5")
 
@@ -98,7 +98,7 @@ class ChordToNoteGenerator:
         '''
         if src == 'nottingham':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=False, is_shifted=False)
+            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=True, is_shifted=False)
 
             # plt.imshow(chords[0])
             # plt.show()
@@ -136,7 +136,7 @@ class ChordToNoteGenerator:
 
 if __name__ == "__main__":
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=5000)
+    generator.train_chord_to_melody_model(epochs=5)
     #ind = 10
 
     #chords = np.transpose(generator.X_test[ind], (1,0))
