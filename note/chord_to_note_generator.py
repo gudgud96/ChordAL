@@ -64,7 +64,7 @@ class ChordToNoteGenerator:
                 mb = ModelBuilder(None, None, None, None)
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-            self.model = mb.build_basic_rnn_model(input_dim=(1200,128))
+            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
             self.model.load_weights('../note/basic_rnn_weights_1000.h5')
 
         elif model_name == 'basic_rnn_unnormalized':
