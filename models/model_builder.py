@@ -9,10 +9,12 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
+
+from chord.chord_generator import NUM_CLASSES
 
 
 class ModelBuilder:
@@ -131,6 +133,37 @@ class ModelBuilder:
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(input_dim[-1])))
         model.add(Activation('softmax'))
+        return model
+
+    def build_bidirectional_rnn_model(self, input_dim):
+        '''
+        Build bidirectional RNN model using LSTMs.
+        :param input_dim: input dimension, normally (100, 128 * 12)
+        :return: model
+        '''
+        model = Sequential()
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
+        model.add(Dropout(0.2))
+        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+        model.add(Dropout(0.2))
+        model.add(TimeDistributed(Dense(128)))                  # 128 notes to output, multi-class
+        model.add(Activation('softmax'))
+        return model
+
+    def build_attention_bidirectional_rnn_model(self, input_dim):
+        '''
+        Build attention bidirectional RNN model using LSTMs.
+        :param input_dim: input dimension, normally (100, 128 * 12)
+        :return: model
+        '''
+        print(input_dim)
+        model = Sequential()
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
+        model.add(Dropout(0.2))
+        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+        model.add(AttentionDecoder(128, 128))     # not sure if this is correct
         return model
 
     def build_basic_conv2d_rnn_model(self, input_dim, use_dropout=False):
