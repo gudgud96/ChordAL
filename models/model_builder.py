@@ -15,6 +15,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from chord.chord_generator import NUM_CLASSES
+from models.keras_attention_wrapper import AttentionDecoder
 
 
 class ModelBuilder:
