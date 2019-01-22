@@ -7,12 +7,13 @@ import os
 
 from chord.chord_generator import ChordGenerator, CHORD_SEQUENCE_FILE, CHORD_SEQUENCE_FILE_SHIFTED
 from note.chord_to_note_generator import ChordToNoteGenerator
-from dataset.data_pipeline import MAX_NUM_OF_BARS, FS
+from dataset.data_pipeline import MAX_NUM_OF_BARS, FS, DataPipeline
 import pretty_midi
 import numpy as np
 from utils import piano_roll_to_pretty_midi
 from mido import MidiFile
 
+IS_BIDEM = True
 
 def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano',
                   is_normalized=True):
@@ -45,13 +46,27 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     pr_midi = piano_roll_to_pretty_midi(pr_save, fs=12)
     pr_midi.write('chords.mid')
 
+    # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
+    if IS_BIDEM:
+        dp = DataPipeline()
+        print(pr_save.shape)
+        chord_indices = dp.convert_chord_to_indices(pr_save)
+        print(chord_indices.shape)
+
     # 3. Generate notes given chords
     chord_to_note_generator = ChordToNoteGenerator()
     if is_normalized:
-        chord_to_note_generator.load_model('basic_rnn_normalized')
+        if IS_BIDEM:
+            chord_to_note_generator.load_model('bidem')
+        else:
+            chord_to_note_generator.load_model('basic_rnn_normalized')
     else:
         chord_to_note_generator.load_model('basic_rnn_unnormalized')
-    chord_to_note_generator.generate_notes_from_chord(pr)
+
+    if IS_BIDEM:
+        chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=IS_BIDEM)
+    else:
+        chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=IS_BIDEM)
 
     # 4. Truncate the melody to be of the chords' length
     temp_melody_midi = pretty_midi.PrettyMIDI('melody.mid')
@@ -181,7 +196,7 @@ def add_bass(song_file, chords, bass_instrument=34):
 if __name__ == "__main__":
     # for i in range(10):
     # song_post_processing('melody.mid', 'chords.mid', 'song.mid', style='techno')
-    # generate_song(bar_number=16, style='church', chords=['D:maj', 'A:maj'])
+    generate_song(bar_number=16, style='church', chords=['D:maj', 'A:maj'])
 
     melody_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/melody.mid')
     chord_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/chords.mid')

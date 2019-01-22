@@ -43,7 +43,7 @@ EPOCH_NUM = 5               # number of epochs for training
 
 
 class ChordGenerator:
-    def __init__(self, filename):
+    def __init__(self, filename=""):
         self.train_file = filename
 
     def preprocess_data(self, tt_split = 0.9, is_small_dataset=True):

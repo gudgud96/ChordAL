@@ -47,7 +47,7 @@ class ChordToNoteGenerator:
 
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save_weights("basic_rnn.h5")
 
@@ -64,8 +64,16 @@ class ChordToNoteGenerator:
                 mb = ModelBuilder(None, None, None, None)
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
+            self.model = mb.build_basic_rnn_model(input_dim=(1200,))
             self.model.load_weights('../note/basic_rnn_weights_1000.h5')
+
+        elif model_name == 'bidem':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
+            self.model.load_weights('../note/bidem_weights_2500.h5')
 
         elif model_name == 'basic_rnn_unnormalized':
             if is_fast_load:
@@ -77,14 +85,17 @@ class ChordToNoteGenerator:
         else:
             print('No model name: {}'.format(model_name))
 
-    def generate_notes_from_chord(self, chords, train_loss='softmax'):
+    def generate_notes_from_chord(self, chords, train_loss='softmax', is_bidem=False):
         '''
         Generate notes from chords in test set, need to specify index.
         :param chords: chord piano roll - (128, x)
         :return: None. Write Midi out as melody.mid.
         '''
         # Prediction
-        y = self.model.predict(np.expand_dims(np.transpose(chords, (1,0)), axis=0))
+        if is_bidem:
+            y = self.model.predict(np.expand_dims(chords, axis=0))
+        else:
+            y = self.model.predict(np.expand_dims(np.transpose(chords, (1,0)), axis=0))
 
         # Handle probabilities according to training loss used
         if train_loss == 'softmax':
@@ -178,4 +189,7 @@ def test_against_test_data():
 
 
 if __name__ == "__main__":
-    test_against_test_data()
+    # test_against_test_data()
+    generator = ChordToNoteGenerator()
+    # generator.load_model('basic_rnn', is_fast_load=False)
+    generator.train_chord_to_melody_model(epochs=3)

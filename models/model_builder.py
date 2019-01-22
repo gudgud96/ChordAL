@@ -9,7 +9,7 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional, dot, concatenate
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -158,13 +158,39 @@ class ModelBuilder:
         :param input_dim: input dimension, normally (100, 128 * 12)
         :return: model
         '''
-        print(input_dim)
+        encoder_input = Input(shape=input_dim)
+
+        encoder = Embedding(NUM_CLASSES, 32, input_shape=input_dim)(encoder_input)
+        encoder = Bidirectional(LSTM(64, return_sequences=True))(encoder)
+        decoder = Bidirectional(LSTM(128, return_sequences=True))(encoder)
+
+        attention = dot([decoder, encoder], axes=[2, 2])
+        attention = Activation('softmax', name='attention')(attention)
+        print('attention', attention)
+
+        context = dot([attention, encoder], axes=[2, 1])
+        print('context', context)
+
+        decoder_combined_context = concatenate([context, decoder])
+        print('decoder_combined_context', decoder_combined_context)
+
+        # Has another weight + tanh layer as described in equation (5) of the paper
+        output = TimeDistributed(Dense(64, activation="tanh"))(decoder_combined_context)
+        output = TimeDistributed(Dense(128, activation="softmax"))(output)
+        print('output', output)
+
+
+        print('decoder', decoder)
+
+
         model = Sequential()
-        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
-        model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
+        model.add()     # NUM_CLASSES is the total number of chord IDs
+        model.add()
         model.add(Dropout(0.2))
         model.add(Bidirectional(LSTM(128, return_sequences=True)))
-        model.add(AttentionDecoder(128, 128))     # not sure if this is correct
+
+
+
         return model
 
     def build_basic_conv2d_rnn_model(self, input_dim, use_dropout=False):
