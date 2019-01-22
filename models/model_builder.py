@@ -162,8 +162,11 @@ class ModelBuilder:
 
         encoder = Embedding(NUM_CLASSES, 32, input_shape=input_dim)(encoder_input)
         encoder = Bidirectional(LSTM(64, return_sequences=True))(encoder)
-        decoder = Bidirectional(LSTM(128, return_sequences=True))(encoder)
+        encoder = Dropout(0.2)(encoder)
+        encoder = Bidirectional(LSTM(128, return_sequences=True))(encoder)
+        encoder = Dropout(0.2)(encoder)
 
+        decoder = Bidirectional(LSTM(128, return_sequences=True))(encoder)
         attention = dot([decoder, encoder], axes=[2, 2])
         attention = Activation('softmax', name='attention')(attention)
         print('attention', attention)
@@ -178,19 +181,9 @@ class ModelBuilder:
         output = TimeDistributed(Dense(64, activation="tanh"))(decoder_combined_context)
         output = TimeDistributed(Dense(128, activation="softmax"))(output)
         print('output', output)
-
-
         print('decoder', decoder)
 
-
-        model = Sequential()
-        model.add()     # NUM_CLASSES is the total number of chord IDs
-        model.add()
-        model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
-
-
-
+        model = Model(inputs=[encoder_input], outputs=[output])
         return model
 
     def build_basic_conv2d_rnn_model(self, input_dim, use_dropout=False):
