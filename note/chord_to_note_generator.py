@@ -51,7 +51,7 @@ class ChordToNoteGenerator:
                 model = load_model("basic_rnn.h5")
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save("basic_rnn.h5")
 
