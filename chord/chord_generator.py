@@ -14,7 +14,7 @@ import random
 
 import matplotlib.pyplot as plt
 import numpy as np
-from keras.layers import TimeDistributed
+from keras.layers import TimeDistributed, Embedding, Bidirectional
 from music21 import *
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
@@ -43,7 +43,7 @@ EPOCH_NUM = 50            # number of epochs for training
 
 
 class ChordGenerator:
-    def __init__(self, filename=''):
+    def __init__(self, filename=CHORD_SEQUENCE_FILE_SHIFTED):
         self.train_file = filename
 
     def preprocess_data(self, tt_split = 0.9, is_small_dataset=True):
@@ -111,16 +111,17 @@ class ChordGenerator:
         num_seq, num_dim = X_train.shape[1], X_train.shape[2]
 
         model = Sequential()
-        model.add(CuDNNLSTM(64, return_sequences=True, input_shape=(num_seq, num_dim)))
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=(num_seq, num_dim)))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Bidirectional(CuDNNLSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(Activation('relu'))
-        model.add(CuDNNLSTM(128, return_sequences=False))
+        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=True)))
         model.add(Dense(num_dim))
         model.add(Activation('softmax'))
 
         model.summary()
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        history =  model.fit(X_train, Y_train, epochs=EPOCH_NUM)
+        history = model.fit(X_train, Y_train, epochs=EPOCH_NUM)
 
         scores = model.evaluate(X_train, Y_train, verbose=True)
         print('Train loss:', scores[0])
@@ -311,7 +312,7 @@ class ChordGenerator:
 
 if __name__ == "__main__":
     # chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
-    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
+    chord_generator = ChordGenerator()
     chord_generator.generate_chords()
     # result = chord_generator.generate_chords(['G:min', 'D:maj', 'Eb:maj'])
     # print(result)
