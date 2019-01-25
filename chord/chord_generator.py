@@ -39,7 +39,7 @@ DECODE_DICT = {
 MAJ, MIN = ["maj", "min"]   # major is even and minor is +1 odd. Hence Cmaj=2, Cmin=3, C#maj=4 and etc.
 TIME_FRAME = 8              # 8 notes timeframe, train by sliding window
 NUM_CLASSES = 26            # 2-25 for major and minor, 0 for None, 1 is not user
-EPOCH_NUM = 50            # number of epochs for training
+EPOCH_NUM = 2            # number of epochs for training
 
 
 class ChordGenerator:
@@ -90,7 +90,8 @@ class ChordGenerator:
         chords_in_tf = np.squeeze(np.asarray(chords_in_tf))
         print("chords_in_tf.shape : {}".format(chords_in_tf.shape))
         X, Y = chords_in_tf[:, :-1], chords_in_tf[:, -1]
-        X_oh, Y_oh = to_categorical(X, num_classes=NUM_CLASSES), to_categorical(Y, num_classes=NUM_CLASSES)
+        X_oh, Y_oh = X, to_categorical(Y, num_classes=NUM_CLASSES)
+        print(X_oh.shape, Y_oh.shape)
 
         tt_split_index = int(tt_split * len(chords_in_tf))
         X_train, X_test, Y_train, Y_test = X_oh[:tt_split_index], X_oh[tt_split_index:], \
@@ -108,20 +109,20 @@ class ChordGenerator:
         :param Y_test
         :return: model
         '''
-        num_seq, num_dim = X_train.shape[1], X_train.shape[2]
+        num_seq = X_train.shape[1]
 
         model = Sequential()
-        model.add(Embedding(NUM_CLASSES, 32, input_shape=(num_seq, num_dim)))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=(num_seq,)))     # NUM_CLASSES is the total number of chord IDs
         model.add(Bidirectional(CuDNNLSTM(64, return_sequences=True)))
-        model.add(Dropout(0.2))
-        model.add(Activation('relu'))
-        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=True)))
-        model.add(Dense(num_dim))
+        # model.add(Dropout(0.2))
+        model.add(Activation('tanh'))
+        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=False)))
+        model.add(Dense(NUM_CLASSES))
         model.add(Activation('softmax'))
 
         model.summary()
         model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-        history = model.fit(X_train, Y_train, epochs=EPOCH_NUM)
+        history = model.fit(X_train, Y_train, epochs=EPOCH_NUM, validation_data=(X_test, Y_test))
 
         scores = model.evaluate(X_train, Y_train, verbose=True)
         print('Train loss:', scores[0])
