@@ -134,12 +134,12 @@ class ModelBuilder:
         encoder_input = Input(shape=input_dim)
 
         encoder = Embedding(NUM_CLASSES, 32, input_shape=input_dim)(encoder_input)
-        encoder = Bidirectional(LSTM(64, return_sequences=True))(encoder)
-        encoder = Dropout(0.2)(encoder)
-        encoder = Bidirectional(LSTM(128, return_sequences=True))(encoder)
-        encoder = Dropout(0.2)(encoder)
+        encoder = Bidirectional(CuDNNLSTM(64, return_sequences=True))(encoder)
+        # encoder = Dropout(0.2)(encoder)
+        encoder = Bidirectional(CuDNNLSTM(128, return_sequences=True))(encoder)
 
-        decoder = Bidirectional(LSTM(128, return_sequences=True))(encoder)
+
+        decoder = Bidirectional(CuDNNLSTM(128, return_sequences=True))(encoder)
         attention = dot([decoder, encoder], axes=[2, 2])
         attention = Activation('softmax', name='attention')(attention)
         print('attention', attention)
@@ -151,8 +151,8 @@ class ModelBuilder:
         print('decoder_combined_context', decoder_combined_context)
 
         # Has another weight + tanh layer as described in equation (5) of the paper
-        output = TimeDistributed(Dense(64, activation="tanh"))(decoder_combined_context)
-        output = TimeDistributed(Dense(128, activation="softmax"))(output)
+        # output = TimeDistributed(Dense(128, activation="tanh"))(decoder_combined_context)
+        output = TimeDistributed(Dense(128, activation="softmax"))(decoder_combined_context)
         print('output', output)
         print('decoder', decoder)
 

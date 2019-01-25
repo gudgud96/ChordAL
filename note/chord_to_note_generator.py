@@ -48,10 +48,16 @@ class ChordToNoteGenerator:
         # Load / train model
         if model_name == 'basic_rnn':
             if os.path.exists("basic_rnn.h5"):
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = load_model("basic_rnn.h5")
+                #model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                #model.load_weights('bidem_weights_2500.h5')
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save("basic_rnn_2.h5")
+
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save("basic_rnn.h5")
 
@@ -97,7 +103,7 @@ class ChordToNoteGenerator:
         '''
         if src == 'nottingham':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=True, is_shifted=False)
+            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=False, is_shifted=False)
 
             # plt.imshow(chords[0])
             # plt.show()
@@ -115,7 +121,7 @@ class ChordToNoteGenerator:
 
         elif src == 'nottingham-embed':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_embed(is_small_set=True)
+            chords, melodies = dp.get_nottingham_embed(is_small_set=False)
             melodies[melodies > 0] = 1
             cshape, mshape = chords.shape, melodies.shape
             print(chords.shape, melodies.shape)
@@ -145,7 +151,7 @@ class ChordToNoteGenerator:
 
 if __name__ == "__main__":
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=5)
+    generator.train_chord_to_melody_model(epochs=500)
     #ind = 10
 
     #chords = np.transpose(generator.X_test[ind], (1,0))
