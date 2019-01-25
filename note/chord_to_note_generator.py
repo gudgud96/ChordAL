@@ -48,29 +48,81 @@ class ChordToNoteGenerator:
         # Load / train model
         if model_name == 'basic_rnn':
             if os.path.exists("basic_rnn.h5"):
-                model = load_model("basic_rnn.h5")
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:])
+                model.load_weights("basic_rnn.h5")
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
-                model.save("basic_rnn.h5")
+                model.save_weights("basic_rnn.h5")
 
         self.model = model
 
-    def load_model(self, model_name):
-        if model_name == 'basic_rnn':
-            self.model = load_model('../note/basic_rnn.h5')
+    def load_model(self, model_name, tt_split=0.9, is_fast_load=True):
+        if not is_fast_load:
+            # Train test split
+            if model_name == 'bidem' or model_name == 'attention':
+                self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src='nottingham-embed')
+                print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
+            else:
+                self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src='nottingham')
+                print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
+
+        if model_name == 'basic_rnn_normalized':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_basic_rnn_model(input_dim=(1200, 128))
+            weights_path = '../note/basic_rnn_weights_500.h5'
+            print('Loading ' + weights_path + '...')
+            self.model.load_weights(weights_path)
+
+        elif model_name == 'basic_rnn_unnormalized':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_basic_rnn_model(input_dim=(1200, 128))
+            weights_path = '../note/basic_rnn_weights_500_unnormalized.h5'
+            print('Loading ' + weights_path + '...')
+            self.model.load_weights(weights_path)
+
+        elif model_name == 'bidem':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
+            weights_path = '../note/bidem_weights_2000.h5'
+            print('Loading ' + weights_path + '...')
+            self.model.load_weights(weights_path)
+
+        elif model_name == 'attention':
+            if is_fast_load:
+                mb = ModelBuilder(None, None, None, None)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+            self.model = mb.build_attention_bidirectional_rnn_model(input_dim=(1200,))
+            weights_path = '../note/attention_weights_1000.h5'
+            print('Loading ' + weights_path + '...')
+            self.model.load_weights(weights_path)
+
         else:
             print('No model name: {}'.format(model_name))
 
-    def generate_notes_from_chord(self, chords, train_loss='softmax'):
+    def generate_notes_from_chord(self, chords, train_loss='softmax', is_bidem=True):
         '''
         Generate notes from chords in test set, need to specify index.
         :param chords: chord piano roll - (128, x)
         :return: None. Write Midi out as melody.mid.
         '''
         # Prediction
-        y = self.model.predict(np.expand_dims(np.transpose(chords, (1,0)), axis=0))
+        if is_bidem:
+            y = self.model.predict(np.expand_dims(chords, axis=0))
+        else:
+            y = self.model.predict(np.expand_dims(np.transpose(chords, (1,0)), axis=0))
 
         # Handle probabilities according to training loss used
         if train_loss == 'softmax':

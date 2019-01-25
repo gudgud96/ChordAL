@@ -43,7 +43,7 @@ EPOCH_NUM = 5               # number of epochs for training
 
 
 class ChordGenerator:
-    def __init__(self, filename=""):
+    def __init__(self, filename=CHORD_SEQUENCE_FILE_SHIFTED):
         self.train_file = filename
 
     def preprocess_data(self, tt_split = 0.9, is_small_dataset=True):
@@ -283,6 +283,7 @@ class ChordGenerator:
             if ch != '-':
                 first_chord = ch
                 break
+        print(first_chord)
         first_key, first_tonality = first_chord.split(':')
         first_key_index = CHORD_DICT[first_key]
         key_of_c = 1
@@ -308,6 +309,7 @@ class ChordGenerator:
         first_key, first_tonality = first_chord.split(':')
         first_key_index = CHORD_DICT[first_key]
         key_of_original = CHORD_DICT[first_key_original]
+        print(first_key, first_key_original, first_key_index, key_of_original)
         diff = key_of_original - first_key_index
         if diff > 0:
             for i in range(len(chords)):
@@ -365,32 +367,10 @@ class ChordGenerator:
         if 'normalized' in self.train_file:
             result_chord = self.__generate_chord_from_seed(self.__normalize_to_c(example_chord), model,
                                                    num_of_chords)
+            print('result', result_chord)
             return self.__unnormalize_from_c(result_chord, first_chord)
         else:
             return self.__generate_chord_from_seed(example_chord, model, num_of_chords)
-
-    def evaluate_chord_variation_coefficient(self, chords):
-        '''
-        Simple evaluations on chords generated.
-        :param chords:
-            Chords sequence generated.
-        :return:
-            No return, but 3 metrics printed -
-                Chord variation - count dict of the chord sequence
-                Chord variation coefficient - 1 - (# unique chords / # total chords)
-                Chord distribution variance - Variance of counts for each chord
-        '''
-        chords = [self.chord_to_id(chord) for chord in chords]
-        chords = [self.id_to_chord(id) for id in chords]
-        count_dict = {}
-        for chord in chords:
-            if chord not in count_dict:
-                count_dict[chord] = chords.count(chord)
-
-        variation_coefficient = 1 - len(list(count_dict.keys())) / len(chords)
-        chord_distribution_sd = np.sqrt(np.var(list(count_dict.values())))
-
-        return count_dict, variation_coefficient, chord_distribution_sd
 
 
 if __name__ == "__main__":
@@ -401,7 +381,6 @@ if __name__ == "__main__":
         result = chord_generator.generate_chords(seed_chord)
         print(result)
         f.write(str(result) + '\n')
-        chord_generator.evaluate_chord_variation_coefficient(result)
         chord_generator.chords_to_midi(result, 'chord-unnormalized-{}.mid'.format(i + 1))
     print()
     f.write('\n')
@@ -410,7 +389,6 @@ if __name__ == "__main__":
         result = chord_generator.generate_chords(seed_chord)
         print(result)
         f.write(str(result) + '\n')
-        chord_generator.evaluate_chord_variation_coefficient(result)
         chord_generator.chords_to_midi(result, 'chord-normalized-{}.mid'.format(i + 1))
 
     # chord_generator.generate_chords()

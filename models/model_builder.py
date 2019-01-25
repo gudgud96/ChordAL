@@ -178,8 +178,8 @@ class ModelBuilder:
         print('decoder_combined_context', decoder_combined_context)
 
         # Has another weight + tanh layer as described in equation (5) of the paper
-        output = TimeDistributed(Dense(64, activation="tanh"))(decoder_combined_context)
-        output = TimeDistributed(Dense(128, activation="softmax"))(output)
+        # output = TimeDistributed(Dense(64, activation="tanh"))(decoder_combined_context)
+        output = TimeDistributed(Dense(128, activation="softmax"))(decoder_combined_context)
         print('output', output)
         print('decoder', decoder)
 

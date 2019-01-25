@@ -15,3 +15,13 @@ def id_to_chord_test():
     assert cg.id_to_chord(14) == "F#:maj"
     assert cg.id_to_chord(6) == "D:maj"
     assert cg.id_to_chord(13) == "F:min"
+
+def test_2():
+    cg = ChordGenerator('')
+    a = ['C:maj', 'C:min', 'C#:maj', 'C#:min', 'D:maj', 'D:min',
+         'D#:maj', 'D#:min', 'E:maj', 'E:min', 'F:maj', 'F:min',
+         'F#:maj', 'F#:min', 'G:maj', 'G:min', 'G#:maj', 'G#:min',
+         'A:maj', 'A:min', 'A#:maj', 'A#:min', 'B:maj', 'B:min']
+    for chord in a:
+        print(cg.chord_to_id(chord), end=' ')
+

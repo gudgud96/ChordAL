@@ -13,7 +13,7 @@ import numpy as np
 from utils import piano_roll_to_pretty_midi
 from mido import MidiFile
 
-IS_BIDEM = True
+MODEL_NAME = "bidem"
 
 def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano',
                   is_normalized=True):
@@ -47,7 +47,7 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     pr_midi.write('chords.mid')
 
     # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
-    if IS_BIDEM:
+    if MODEL_NAME in ["attention", "bidem"]:
         dp = DataPipeline()
         print(pr_save.shape)
         chord_indices = dp.convert_chord_to_indices(pr_save)
@@ -55,18 +55,12 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
 
     # 3. Generate notes given chords
     chord_to_note_generator = ChordToNoteGenerator()
-    if is_normalized:
-        if IS_BIDEM:
-            chord_to_note_generator.load_model('bidem')
-        else:
-            chord_to_note_generator.load_model('basic_rnn_normalized')
-    else:
-        chord_to_note_generator.load_model('basic_rnn_unnormalized')
+    chord_to_note_generator.load_model(MODEL_NAME)
 
-    if IS_BIDEM:
-        chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=IS_BIDEM)
+    if MODEL_NAME in ["attention", "bidem"]:
+        chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True)
     else:
-        chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=IS_BIDEM)
+        chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=False)
 
     # 4. Truncate the melody to be of the chords' length
     temp_melody_midi = pretty_midi.PrettyMIDI('melody.mid')
