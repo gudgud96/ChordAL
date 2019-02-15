@@ -4,6 +4,7 @@ import keras
 import tensorflow as tf
 import numpy as np
 
+from chord.chord_generator import ChordGenerator
 from note.chord_to_note_generator import ChordToNoteGenerator
 from keras import backend as K
 import pandas as pd
@@ -19,20 +20,25 @@ def main():
     OUTPUT_MODEL_FILE_NAME = os.path.join(ROOT_DIR,'tf.ckpt')
 
     # get the keras model
-    ctng = ChordToNoteGenerator()
-    ctng.load_model(model_name="bidem", is_fast_load=True)
-    model = ctng.model
+    # ChordToNote embedding's didn't reveal anything. Trying chord generator
+    cg = ChordGenerator()
+    model = cg.build_model()
+    model.load_weights('../chord/chord_weights_bidem.h5')
+
+    # ctng.load_model(model_name="bidem", is_fast_load=True)
+    # model = ctng.model
     layer = model.layers[0] # embedding layer
+    print(layer)
 
     inp = model.input  # input placeholder
     output = layer.output  # embedding layer outputs
     functor = K.function([inp, K.learning_phase()], [output])   # evaluation functions
 
     # Testing
-    test = np.arange(2, 25)
-    test = np.pad(test, (0, 1200 - len(test)), 'constant', constant_values=0)
+    test = np.arange(2, 26)
+    print(len(test))
+    # test = np.pad(test, (0, 1200 - len(test)), 'constant', constant_values=0)
     layer_outs = np.array(functor([test])).squeeze()
-    layer_outs = layer_outs[:24]
 
     # Get working directory
     PATH = os.getcwd()

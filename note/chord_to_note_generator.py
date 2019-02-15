@@ -112,7 +112,7 @@ class ChordToNoteGenerator:
         else:
             print('No model name: {}'.format(model_name))
 
-    def generate_notes_from_chord(self, chords, train_loss='softmax', is_bidem=True):
+    def generate_notes_from_chord(self, chords, train_loss='softmax', is_bidem=True, is_return=False):
         '''
         Generate notes from chords in test set, need to specify index.
         :param chords: chord piano roll - (128, x)
@@ -133,12 +133,13 @@ class ChordToNoteGenerator:
         y = np.transpose(np.squeeze(b), (1,0))
         y[y > 0] = 90
         chords[chords > 0] = 90
-        # unique, counts = np.unique(chords, return_counts=True)
-        # print(dict(zip(unique, counts)))
 
         # Write out as midi
         y_midi = piano_roll_to_pretty_midi(y, fs=12)
         y_midi.write('melody.mid')
+
+        if is_return:
+            return y
 
     def __get_raw_data(self, src='nottingham', model_name='basic_rnn'):
         '''

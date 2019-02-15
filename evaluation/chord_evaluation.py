@@ -1,4 +1,10 @@
+import os
+
 from chord.chord_generator import ChordGenerator, CHORD_DICT
+
+# Determine whether to test on major chords, minor chords, or all
+IS_MAJOR = False
+IS_MINOR = False
 
 
 def evaluate_chord_function(chords):
@@ -125,7 +131,14 @@ def round(note_value):
 
 def generate_chord_samples():
     cg = ChordGenerator()
-    sample_chords = open("sample_chords.txt").readlines()
+
+    if IS_MAJOR:
+        sample_chords = open("sample_chords_major.txt").readlines()
+    elif IS_MINOR:
+        sample_chords = open("sample_chords_minor.txt").readlines()
+    else:
+        sample_chords = open("sample_chords.txt").readlines()
+
     sample_chords = [chord.strip() for chord in sample_chords]
     chords_experiment = 'chords_experiment.txt'
     f = open(chords_experiment, 'a+')
@@ -142,10 +155,18 @@ def generate_chord_samples():
         f.write(' > '.join(generated_chords) + '\n')
 
 
+def move_files_to_evaluation_folder():
+    folder_name = int(os.listdir('./evaluation_results')[-1]) + 1
+    os.mkdir('./evaluation_results/' + str(folder_name) + '/')
+    os.rename('evaluation.txt', 'evaluation_results/' + str(folder_name) + '/evaluation.txt')
+    os.rename('chords_experiment.txt', 'evaluation_results/' + str(folder_name) + '/chords_experiment.txt')
+    os.remove('example_chord.txt')
+    os.remove('result_chord.txt')
+
+
 def main():
     chords_experiment = 'chords_experiment.txt'
     evaluation_text = 'evaluation.txt'
-    csv_file = 'evaluation.csv'
     open(chords_experiment, 'w+').write('')
     open(evaluation_text, 'w+').write('')
 
@@ -153,8 +174,6 @@ def main():
 
     f = [k.lstrip().rstrip() for k in open(chords_experiment).readlines()]
     e = open(evaluation_text, 'a+')
-    c = open(csv_file, 'a+')
-    c.write('outlier,chord_repeats,variation,non_function')
 
     total_dict = {}
     for i in range(len(f)):
@@ -175,14 +194,15 @@ def main():
             temp.append(result[k])
 
         e.write('\n\n')
-        c.write(','.join([str(k) for k in temp]) + '\n')
 
     e.write('-- Average --\n')
     temp = []
     for k in total_dict.keys():
         e.write('{}  -  {}\n'.format(k, total_dict[k] / len(f)))
         temp.append(total_dict[k] / len(f))
-    c.write(','.join([str(k) for k in temp]) + '\n')
+
+    e.close()
+    move_files_to_evaluation_folder()
 
 
 if __name__ == "__main__":

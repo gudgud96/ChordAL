@@ -15,6 +15,7 @@ from mido import MidiFile
 
 MODEL_NAME = "bidem"
 
+
 def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano',
                   is_normalized=True):
     # 1. Generate chords

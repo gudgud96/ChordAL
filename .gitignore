@@ -16,7 +16,11 @@ dataset/Nottingham
 dataset/Nottingham-Data
 dataset/Nottingham-midi
 dataset/Nottingham-Piano
+dataset/Nottingham-Piano-shifted
+dataset/Nottingham-shifted-midi
 dataset/*.mid
+evaluation/chord_samples
+evaluation/note_evaluation_results
 
 # Collections
 chord/collections/
