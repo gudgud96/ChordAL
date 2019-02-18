@@ -118,25 +118,26 @@ class ModelBuilder:
 
         return vae, encoder, generator, z_log_var, z_mean
 
-    def build_basic_rnn_model(self, input_dim, use_dropout=False):
+    def build_basic_rnn_model(self, input_dim, output_dim=None, use_dropout=False):
         '''
         Build basic RNN model using LSTMs.
         :param input_dim: input dimension, normally (100, 128 * 12)
         :param use_dropout: whether to use dropout
         :return: model
         '''
-        print(input_dim)
+        if not output_dim:
+            output_dim = input_dim[-1]
         model = Sequential()
         # added reset after flag for CuDNN compatibility purpose
         model.add(LSTM(64, return_sequences=True, input_shape=input_dim))
         model.add(LSTM(128, return_sequences=True))
         model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
-        model.add(TimeDistributed(Dense(input_dim[-1])))
+        model.add(TimeDistributed(Dense(output_dim)))
         model.add(Activation('softmax'))
         return model
 
-    def build_bidirectional_rnn_model(self, input_dim):
+    def build_bidirectional_rnn_model(self, input_dim, output_dim=128):
         '''
         Build bidirectional RNN model using LSTMs.
         :param input_dim: input dimension, normally (100, 128 * 12)
@@ -148,7 +149,7 @@ class ModelBuilder:
         model.add(Dropout(0.2))
         model.add(Bidirectional(LSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(TimeDistributed(Dense(128)))                  # 128 notes to output, multi-class
+        model.add(TimeDistributed(Dense(output_dim)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
         return model
 
