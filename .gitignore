@@ -18,6 +18,7 @@ dataset/Nottingham-midi
 dataset/Nottingham-Piano
 dataset/Nottingham-Piano-shifted
 dataset/Nottingham-shifted-midi
+dataset/csv-leadsheet
 dataset/*.mid
 evaluation/chord_samples
 evaluation/note_evaluation_results

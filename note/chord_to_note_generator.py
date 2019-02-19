@@ -2,15 +2,13 @@
 Author:     Tan Hao Hao
 Project:    deeppop
 Purpose:    Chord to note generator.
-
-Improvements needed:
-(/) - Include Basic RNN model.
 '''
 import sys,os
 sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 
 import os
 from keras.models import load_model
+from keras import backend as K
 from utils import piano_roll_to_pretty_midi
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
@@ -34,12 +32,6 @@ class ChordToNoteGenerator:
         :param model_name: specify which model we are training
         :return: None. Model is assigned as self.model for this generator
         '''
-        # Load data
-        # chords, melodies = self.__get_raw_data()
-        # chords, melodies = self.__process_raw_data(chords, melodies)
-        # unique, counts = np.unique(chords, return_counts=True)
-        # print(dict(zip(unique, counts)))
-        # print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
 
         # Train test split
         self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src="nottingham-embed")
@@ -60,6 +52,9 @@ class ChordToNoteGenerator:
         self.model = model
 
     def load_model(self, model_name, tt_split=0.9, is_fast_load=True):
+        # clear session to avoid any errors
+        K.clear_session()
+
         if not is_fast_load:
             # Train test split
             if model_name == 'bidem' or model_name == 'attention':

@@ -4,12 +4,20 @@ Project:    deeppop
 Purpose:    Note to chord generator.
 '''
 import numpy as np
+import matplotlib.pyplot as plt
 import os
+from collections import Counter
+
+from pretty_midi import pretty_midi
+
+from utils import piano_roll_to_pretty_midi, chord_index_to_piano_roll
 
 from keras.utils import to_categorical
 
+from chord.chord_generator import ChordGenerator
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
+from generator.song_generator import merge_melody_with_chords
 
 
 class NoteToChordGenerator:
@@ -19,6 +27,34 @@ class NoteToChordGenerator:
         self.X_test = None
         self.Y_test = None
         self.model = None
+
+    def generate_chords_from_note(self):
+        self.train_melody_to_chord_model(model_name="basic_rnn")
+        test_melody = np.expand_dims(self.X_train[0], axis=0)
+
+        # generate chords from notes
+        result_chord_indices = np.argmax(self.model.predict(test_melody), axis=2)[0]
+        result_chord_pr = chord_index_to_piano_roll(result_chord_indices)
+        chord_midi = piano_roll_to_pretty_midi(result_chord_pr, fs=12)
+        chord_midi.write('chords.mid')
+
+        # just for reference
+        actual_chord_indices = np.argmax(self.Y_train[0], axis=1)
+        actual_chord_pr = chord_index_to_piano_roll(actual_chord_indices)
+        actual_chord_midi = piano_roll_to_pretty_midi(actual_chord_pr, fs=12)
+        actual_chord_midi.write('actual_chords.mid')
+
+        # get the melody
+        test_melody = to_categorical(self.X_train[0], num_classes=128)
+        test_melody = np.transpose(np.squeeze(test_melody), (1,0))
+        test_melody[test_melody > 0] = 90
+        melody_midi = piano_roll_to_pretty_midi(test_melody, fs=12)
+        melody_midi.write('melody.mid')
+
+        print(Counter(result_chord_indices))
+        # merge together
+        merge_melody_with_chords('melody.mid', 'chords.mid', 'song.mid')
+        merge_melody_with_chords('melody.mid', 'actual_chords.mid', 'actual_song.mid')
 
     def train_melody_to_chord_model(self, tt_split=0.9, epochs=100, model_name='basic_rnn'):
         '''
@@ -35,17 +71,18 @@ class NoteToChordGenerator:
 
         # Load / train model
         if model_name == 'basic_rnn':
-            if os.path.exists("basic_rnn.h5"):
+            model_file = "basic_rnn.h5"
+            if os.path.exists(model_file):
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:],
                                                  output_dim=self.Y_train.shape[-1])
-                model.load_weights("basic_rnn.h5")
+                model.load_weights(model_file)
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_basic_rnn_model(input_dim=self.X_train.shape[1:],
                                                  output_dim=self.Y_train.shape[-1])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
-                model.save_weights("basic_rnn.h5")
+                model.save_weights(model_file)
 
         elif model_name == "bidem":
             if os.path.exists("bidem.h5"):
@@ -61,6 +98,7 @@ class NoteToChordGenerator:
                 model.save_weights("bidem.h5")
 
         self.model = model
+        print("Model {} loaded.".format(model_name))
 
     def __get_raw_data(self, src='nottingham', model_name='basic_rnn'):
         '''
@@ -109,4 +147,4 @@ class NoteToChordGenerator:
 
 if __name__ == "__main__":
     generator = NoteToChordGenerator()
-    generator.train_melody_to_chord_model(epochs=5, model_name='basic_rnn')
+    generator.generate_chords_from_note()

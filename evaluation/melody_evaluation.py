@@ -1,7 +1,5 @@
 import os
-
 from pretty_midi import pretty_midi
-
 from note.chord_to_note_generator import ChordToNoteGenerator
 from chord.chord_generator import ChordGenerator
 from dataset.data_pipeline import DataPipeline
@@ -112,24 +110,39 @@ def main():
     e = open(evaluation_text, 'a+')
     total_res = {}
 
+    model_name = 'attention'            # change this line to swap different model name
+
     ctng = ChordToNoteGenerator()
-    ctng.load_model('bidem', is_fast_load=True)
+    ctng.load_model(model_name, is_fast_load=True)
 
     f = os.listdir('chord_samples/')
     counter = 1
 
     for chords in f:
         print('\nEvaluating file: {}...'.format(chords))
-        chord_array = convert_midi_to_chord_indices('chord_samples/' + chords)
-        tmp = np.pad(chord_array, (0, 1200 - len(chord_array)), 'constant', constant_values=0)
-        notes = ctng.generate_notes_from_chord(tmp, is_return=True)
 
-        melody_pr = pretty_midi.PrettyMIDI('melody.mid').get_piano_roll(fs=12)[:, :len(chord_array)]
+        if model_name == 'bidem' or model_name == 'attention':
+            chord_array = convert_midi_to_chord_indices('chord_samples/' + chords)
+            chord_array_length = len(chord_array)
+            tmp = np.pad(chord_array, (0, 1200 - chord_array_length), mode='constant', constant_values=0)
+        else:
+            chord_array = pretty_midi.PrettyMIDI('chord_samples/' + chords)
+            pr = chord_array.get_piano_roll(fs=12)
+            chord_array_length = pr.shape[-1]
+            tmp = np.pad(pr, [(0, 0), (0, 1200 - chord_array_length)], mode='constant', constant_values=0)
+
+        notes = ctng.generate_notes_from_chord(tmp, is_return=True, is_bidem=(model_name == 'bidem'
+                                                                              or model_name == 'attention'))
+
+        melody_pr = pretty_midi.PrettyMIDI('melody.mid').get_piano_roll(fs=12)[:, :chord_array_length]
         melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
         melody_midi.write('melody_{}.mid'.format(counter))
         counter += 1
 
-        notes = np.argmax(notes, axis=0)[:len(chord_array)]
+        notes = np.argmax(notes, axis=0)[:chord_array_length]
+
+        if model_name != 'bidem' and model_name != 'attention':
+            chord_array = convert_midi_to_chord_indices('chord_samples/' + chords)      # for evaluation
 
         res = evaluate_notes(notes, chord_array)
         e.write(chords + "\n")

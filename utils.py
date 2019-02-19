@@ -51,3 +51,33 @@ def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
             prev_velocities[note] = 0
     pm.instruments.append(instrument)
     return pm
+
+
+def chord_index_to_piano_roll(chord_indices):
+    index_to_pitch_map = {}
+    for i in range(1, 10):
+        index_to_pitch_map[i] = 47 + i
+    index_to_pitch_map[10] = 45
+    index_to_pitch_map[11] = 46
+    index_to_pitch_map[12] = 47
+
+    res = np.full((1200,128), 0)
+
+    for i in range(len(chord_indices)):
+        ind = chord_indices[i]
+        if ind == 0:
+            continue
+        base_note = index_to_pitch_map[ind // 2]
+        if ind % 2 == 0:    # major
+            res[i][base_note] = 90
+            res[i][base_note + 4] = 90
+            res[i][base_note + 7] = 90
+        else:               # minor
+            res[i][base_note] = 90
+            res[i][base_note + 3] = 90
+            res[i][base_note + 7] = 90
+
+    return np.transpose(res, (1,0))
+
+
+

@@ -2,14 +2,8 @@
 Author:     Tan Hao Hao
 Project:    deeppop
 Purpose:    Train and generate chord sequence from chord sequence dataset.
-
-Improvements needed:
-(/) Data preprocess done. Build model for training and generation.
-( ) Find a way to train for more epochs. Now only train 5 epochs with 80+% accuracy.
-( ) Do an analysis on the usage of chords at the commented section.
-( ) Duplicate code with rhythm generator may need refactoring in preprocess_data and model building.
-
 '''
+
 import random
 
 import matplotlib.pyplot as plt
@@ -20,6 +14,7 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers.recurrent import LSTM
 from keras.utils.np_utils import to_categorical
+from keras import backend as K
 from keras.models import load_model
 import os
 
@@ -40,6 +35,8 @@ MAJ, MIN = ["maj", "min"]   # major is even and minor is +1 odd. Hence Cmaj=2, C
 TIME_FRAME = 8              # 8 notes timeframe, train by sliding window
 NUM_CLASSES = 26            # 2-25 for major and minor, 0 for None, 1 is not used
 EPOCH_NUM = 5               # number of epochs for training
+
+MODEL_NAME = 'bidem'       # model is either normal vanilla RNN, or bidem
 
 
 class ChordGenerator:
@@ -124,7 +121,6 @@ class ChordGenerator:
         model = Sequential()
         model.add(Embedding(NUM_CLASSES, 32, input_shape=(num_seq,)))     # NUM_CLASSES is the total number of chord IDs
         model.add(Bidirectional(LSTM(64, return_sequences=True)))
-        # model.add(Dropout(0.2))
         model.add(Activation('tanh'))
         model.add(Bidirectional(LSTM(128, return_sequences=False)))
         model.add(Dense(NUM_CLASSES))
@@ -146,7 +142,7 @@ class ChordGenerator:
         plt.savefig('training_graph.png')
         return model
 
-    def __generate_chord_from_seed(self, example_chord, model, num_of_chords=32):
+    def __generate_chord_from_seed(self, example_chord, model, num_of_chords=32, is_one_hot=False):
         '''
         Private method to generate chords given a seed sequence of chords
         :param example_chord:
@@ -163,28 +159,29 @@ class ChordGenerator:
         result_chord = seed_chord[:]
         index = 0
 
-        while len(result_chord) < num_of_chords:   # terminating condition now only consist of a fixed length
+        while len(result_chord) < num_of_chords:
+            # terminating condition now only consist of a fixed length
             cur_chord_block = result_chord[index : index + TIME_FRAME]
-            next_chord = self.__generate_next_chord(cur_chord_block, model)
+            next_chord = self.__generate_next_chord(cur_chord_block, model, is_one_hot=is_one_hot)
             result_chord.append(next_chord)
             index += 1
 
         while result_chord[0] == '-':
             cur_chord_block = result_chord[len(result_chord) - TIME_FRAME:]
-            next_chord = self.__generate_next_chord(cur_chord_block, model)
+            next_chord = self.__generate_next_chord(cur_chord_block, model, is_one_hot=is_one_hot)
             result_chord.append(next_chord)
             result_chord.pop(0)
 
         return result_chord
 
-    def __generate_next_chord(self, chord_block, model):
+    def __generate_next_chord(self, chord_block, model, is_one_hot=False):
         '''
         Private method to generate next chord given a chord block.
         :param chord_block:
         :param model:
         :return: next chord
         '''
-        predict_chord_oh = self.one_hot_encode_chords(chord_block, is_one_hot=False)
+        predict_chord_oh = self.one_hot_encode_chords(chord_block, is_one_hot=is_one_hot)
         predict_chord_oh = np.expand_dims(predict_chord_oh, axis=0)
 
         # prediction = model.predict_classes(predict_chord_oh)
@@ -198,7 +195,8 @@ class ChordGenerator:
         result = self.id_to_chord(prediction_random_sample)      # random sampling
         return result
 
-    def chords_to_midi(self, chords, name='chords_to_midi.mid', is_chord=True):
+    def chords_to_midi(self, chords, name='chords_to_midi.mid', is_chord=True,
+                       add_rest=False, chord_duration=4):
         '''
 
         :param chords:
@@ -210,7 +208,11 @@ class ChordGenerator:
         s = stream.Stream()
         for c in chords:
             if c == '-':
-                continue        # TODO: Not a good strategy
+                if add_rest:
+                    r = note.Rest()
+                    r.duration.quarterLength = 1 / 12
+                    s.append(r)       # add a rest of quarter note length
+                continue
             note_name, quality = c.split(':')
             note_value = CHORD_DICT[note_name]
 
@@ -236,8 +238,8 @@ class ChordGenerator:
                 new_value_lst = []
                 for i in range(len(value_lst)):
                     new_value_lst.append(DECODE_DICT[value_lst[i]] + str(octave_lst[i]))
-
-                d = duration.Duration(4)    # whole note length
+                print(new_value_lst)
+                d = duration.Duration(chord_duration)    # whole note length
                 temp_chord = chord.Chord(new_value_lst, duration=d)
                 s.append(temp_chord)
 
@@ -247,6 +249,7 @@ class ChordGenerator:
                 s.append(bass_note)
 
         fp = name
+        print("lengths", len(s), len(chords))
         s.write('midi', fp=fp)
         return fp
 
@@ -333,16 +336,28 @@ class ChordGenerator:
         return chords
 
     def load_model(self, X_train, X_test, Y_train, Y_test, is_retrain):
+        # clear session to avoid any errors
+        K.clear_session()
+
         if 'normalized' in self.train_file:
-            if os.path.exists('../chord/chord_weights_bidem.h5') and not is_retrain:
-                print('Loading chord_weights_bidem.h5...')
-                model = self.build_model()
-                model.load_weights('../chord/chord_weights_bidem.h5')
+            if MODEL_NAME == 'bidem':
+                chord_weights_file = '../chord/chord_weights_bidem.h5'
+            else:
+                chord_weights_file = '../chord/chord_weights_normalized-v1.h5'
+
+            if os.path.exists(chord_weights_file) and not is_retrain:
+                print('Loading ' + chord_weights_file + '...')
+                if MODEL_NAME == 'bidem':
+                    model = self.build_model()
+                else:
+                    model = self.build_model_architecture(X_train.shape[1], X_train.shape[2])
+                model.load_weights(chord_weights_file)
 
             else:
+                print('Training chord model...')
                 model = self.build_model()
                 model = self.train_model(model, X_train, X_test, Y_train, Y_test)
-                model.save('../chord/chord_model_normalized.h5')
+                model.save(chord_weights_file)
 
         else:
             if os.path.exists('../chord/chord_weights_unnormalized.h5') and not is_retrain:
@@ -379,17 +394,25 @@ class ChordGenerator:
             else:
                 example_chord = example_chord[:TIME_FRAME]
 
+        # if unnormalized, is_one_hot = True
+        # if normalized, is not bidem, is_one_hot = True
+        is_one_hot = ("normalized" not in self.train_file) or ("normalized" in self.train_file and MODEL_NAME != 'bidem')
+
         if 'normalized' in self.train_file:
-            result_chord = self.__generate_chord_from_seed(self.__normalize_to_c(example_chord), model,
-                                                   num_of_chords)
-            result_chord =  self.__unnormalize_from_c(result_chord, first_chord)
+            result_chord = self.__generate_chord_from_seed(self.__normalize_to_c(example_chord),
+                                                           model,
+                                                           num_of_chords,
+                                                           is_one_hot=is_one_hot)
+
+            result_chord = self.__unnormalize_from_c(result_chord, first_chord)
 
             open('example_chord.txt', 'w+').write(' > '.join(example_chord))
             open('result_chord.txt', 'w+').write(' > '.join(result_chord))
 
             return result_chord
         else:
-            return self.__generate_chord_from_seed(example_chord, model, num_of_chords)
+            return self.__generate_chord_from_seed(example_chord, model, num_of_chords,
+                                                   is_one_hot=is_one_hot)
 
 
 if __name__ == "__main__":

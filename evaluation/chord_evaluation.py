@@ -1,10 +1,10 @@
 import os
 
-from chord.chord_generator import ChordGenerator, CHORD_DICT
+from chord.chord_generator import ChordGenerator, CHORD_DICT, CHORD_SEQUENCE_FILE
 
 # Determine whether to test on major chords, minor chords, or all
 IS_MAJOR = False
-IS_MINOR = False
+IS_MINOR = True
 
 
 def evaluate_chord_function(chords):
@@ -130,7 +130,7 @@ def round(note_value):
 
 
 def generate_chord_samples():
-    cg = ChordGenerator()
+    cg = ChordGenerator(CHORD_SEQUENCE_FILE)
 
     if IS_MAJOR:
         sample_chords = open("sample_chords_major.txt").readlines()
@@ -156,7 +156,7 @@ def generate_chord_samples():
 
 
 def move_files_to_evaluation_folder():
-    folder_name = int(os.listdir('./evaluation_results')[-1]) + 1
+    folder_name = sorted([int(k) for k in os.listdir('./evaluation_results')])[-1] + 1
     os.mkdir('./evaluation_results/' + str(folder_name) + '/')
     os.rename('evaluation.txt', 'evaluation_results/' + str(folder_name) + '/evaluation.txt')
     os.rename('chords_experiment.txt', 'evaluation_results/' + str(folder_name) + '/chords_experiment.txt')
