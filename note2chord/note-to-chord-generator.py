@@ -89,14 +89,17 @@ class NoteToChordGenerator:
 
         elif model_name == 'bidirectional':
             model_file = "bidirectional_rnn.h5"
+            self.X_train = to_categorical(self.X_train, num_classes=128)
+            self.X_test = to_categorical(self.X_test, num_classes=128)
             if os.path.exists(model_file):
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:],
+                #self.X_train = np.expand_dims(self.X_train, axis=-1)
+                model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=self.X_train.shape[1:],
                                                  output_dim=self.Y_train.shape[-1])
                 model.load_weights(model_file)
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:],
+                model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=self.X_train.shape[1:],
                                                  output_dim=self.Y_train.shape[-1])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save_weights(model_file)        
@@ -137,8 +140,10 @@ class NoteToChordGenerator:
 
         elif src == 'nottingham-embed':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_embed(is_small_set=False)
-            melodies[melodies > 0] = 1
+            #chords, melodies = dp.get_nottingham_embed(is_small_set=False)
+            chords, melodies = dp.get_nottingham_halved()
+            chords, melodies = dp.get_csv_nottingham_cleaned()
+            #melodies[melodies > 0] = 1
             print(chords.shape, melodies.shape)
 
         return chords, melodies
@@ -166,4 +171,4 @@ class NoteToChordGenerator:
 if __name__ == "__main__":
     generator = NoteToChordGenerator()
     #generator.generate_chords_from_note(model_name="bidirectional")
-    generator.train_melody_to_chord_model(epochs=5, model_name="bidirectional")
+    generator.train_melody_to_chord_model(epochs=500, model_name="bidirectional")

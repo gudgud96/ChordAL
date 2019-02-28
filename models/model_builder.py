@@ -239,7 +239,8 @@ class ModelBuilder:
             "binary_crossentropy": ['binary_accuracy'],
             "categorical_crossentropy": ['categorical_accuracy']
         }
-        model.compile(loss=loss, optimizer='adam', metrics=loss_metrics_dict[loss])
+        optimizer = Adam(clipnorm=1.0)
+        model.compile(loss=loss, optimizer=optimizer, metrics=loss_metrics_dict[loss])
         history = model.fit(self.X_train, self.Y_train, epochs=epochs, validation_data=(self.X_test, self.Y_test))
 
         scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
