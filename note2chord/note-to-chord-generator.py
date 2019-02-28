@@ -3,6 +3,9 @@ Author:     Tan Hao Hao
 Project:    deeppop
 Purpose:    Note to chord generator.
 '''
+import sys,os
+sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -28,8 +31,8 @@ class NoteToChordGenerator:
         self.Y_test = None
         self.model = None
 
-    def generate_chords_from_note(self):
-        self.train_melody_to_chord_model(model_name="basic_rnn")
+    def generate_chords_from_note(self, model_name="basic_rnn"):
+        self.train_melody_to_chord_model(model_name=model_name, epochs=5)
         test_melody = np.expand_dims(self.X_train[0], axis=0)
 
         # generate chords from notes
@@ -84,6 +87,20 @@ class NoteToChordGenerator:
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
                 model.save_weights(model_file)
 
+        elif model_name == 'bidirectional':
+            model_file = "bidirectional_rnn.h5"
+            if os.path.exists(model_file):
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:],
+                                                 output_dim=self.Y_train.shape[-1])
+                model.load_weights(model_file)
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:],
+                                                 output_dim=self.Y_train.shape[-1])
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save_weights(model_file)        
+
         elif model_name == "bidem":
             if os.path.exists("bidem.h5"):
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
@@ -109,7 +126,7 @@ class NoteToChordGenerator:
         '''
         if src == 'nottingham':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=True, is_shifted=False)
+            chords, melodies = dp.get_nottingham_piano_roll(is_small_set=False, is_shifted=False)
 
             chords[chords > 0] = 1
             melodies[melodies > 0] = 1
@@ -120,14 +137,15 @@ class NoteToChordGenerator:
 
         elif src == 'nottingham-embed':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_embed(is_small_set=True)
+            chords, melodies = dp.get_nottingham_embed(is_small_set=False)
             melodies[melodies > 0] = 1
             print(chords.shape, melodies.shape)
 
         return chords, melodies
 
     def __process_raw_data(self, chords, melodies, model='basic_rnn'):
-        melodies = np.expand_dims(np.argmax(melodies, axis=1), axis=-1)
+        #melodies = np.expand_dims(np.argmax(melodies, axis=1), axis=-1)
+        # melodies come in as indices already
         chords = to_categorical(chords, num_classes=26)
         return chords, melodies
 
@@ -147,4 +165,5 @@ class NoteToChordGenerator:
 
 if __name__ == "__main__":
     generator = NoteToChordGenerator()
-    generator.generate_chords_from_note()
+    #generator.generate_chords_from_note(model_name="bidirectional")
+    generator.train_melody_to_chord_model(epochs=5, model_name="bidirectional")

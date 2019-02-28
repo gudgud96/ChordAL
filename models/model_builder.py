@@ -9,7 +9,7 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional, dot, concatenate
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional, dot, concatenate, CuDNNLSTM
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -129,11 +129,21 @@ class ModelBuilder:
             output_dim = input_dim[-1]
         model = Sequential()
         # added reset after flag for CuDNN compatibility purpose
-        model.add(LSTM(64, return_sequences=True, input_shape=input_dim))
-        model.add(LSTM(128, return_sequences=True))
+        model.add(CuDNNLSTM(64, return_sequences=True, input_shape=input_dim))
+        model.add(CuDNNLSTM(128, return_sequences=True))
         model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(output_dim)))
+        model.add(Activation('softmax'))
+        return model
+
+    def build_bidirectional_rnn_model_no_embeddings(self, input_dim, output_dim=128):
+        model = Sequential()
+        model.add(Bidirectional(CuDNNLSTM(64, return_sequences=True), input_shape=input_dim))
+        model.add(Dropout(0.2))
+        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=True)))
+        model.add(Dropout(0.2))
+        model.add(TimeDistributed(Dense(output_dim)))  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
         return model
 
@@ -145,9 +155,9 @@ class ModelBuilder:
         '''
         model = Sequential()
         model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
-        model.add(Bidirectional(LSTM(64, return_sequences=True)))
+        model.add(Bidirectional(CuDNNLSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(TimeDistributed(Dense(output_dim)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
@@ -230,17 +240,20 @@ class ModelBuilder:
             "categorical_crossentropy": ['categorical_accuracy']
         }
         model.compile(loss=loss, optimizer='adam', metrics=loss_metrics_dict[loss])
-        history = model.fit(self.X_train, self.Y_train, epochs=epochs)
+        history = model.fit(self.X_train, self.Y_train, epochs=epochs, validation_data=(self.X_test, self.Y_test))
 
         scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
         print('Train loss:', scores[0])
         print('Train accuracy:', scores[1])
-        scores = model.evaluate(self.X_test, self.Y_test, verbose=True)
-        print('Test loss:', scores[0])
-        print('Test accuracy:', scores[1])
+        scores_2 = model.evaluate(self.X_test, self.Y_test, verbose=True)
+        print('Test loss:', scores_2[0])
+        print('Test accuracy:', scores_2[1])
 
         plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
-        plt.show()
+        plt.plot(range(len(history.history['val_loss'])), history.history['val_loss'], label='validation loss')
+
+        plt.savefig('loss_train_test.png')
+        open('train_test_accuracy.txt', 'w+').write('Train acc: {} Test acc: {} Train_loss: {} Test_loss: {}'.format(scores[1], scores_2[1], scores[0], scores_2[0]))
 
         return model
 
