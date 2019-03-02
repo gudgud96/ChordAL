@@ -4,31 +4,34 @@ Project:    deeppop
 Purpose:    A complete song generator.
 '''
 import os
+from collections import Counter
+
+from keras.utils import to_categorical
 
 from chord.chord_generator import ChordGenerator, CHORD_SEQUENCE_FILE, CHORD_SEQUENCE_FILE_SHIFTED
 from note.chord_to_note_generator import ChordToNoteGenerator
+from note2chord.note_to_chord_generator import NoteToChordGenerator
 from dataset.data_pipeline import MAX_NUM_OF_BARS, FS, DataPipeline
 import pretty_midi
 import numpy as np
-from utils import piano_roll_to_pretty_midi
+from utils import piano_roll_to_pretty_midi, merge_melody_with_chords
 from mido import MidiFile
 
 MODEL_NAME = "bidem"
 
 
-def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano',
-                  is_normalized=True):
-    # 1. Generate chords
-    if is_normalized:
-        chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE_SHIFTED)
-    else:
-        chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE)
+def generate_chords(chords, bar_number):
+    chord_generator = ChordGenerator(CHORD_SEQUENCE_FILE_SHIFTED)
+
     if not chords:
         chords = ['D:maj', 'A:maj', 'B:min', 'F#:min']
     chords = chord_generator.generate_chords(chords, num_of_chords=bar_number)
+    return chords
 
-    # 2. Convert chords to piano roll
-    fp = chord_generator.chords_to_midi(chords)
+
+def convert_chords_to_piano_roll(chords):
+    cg = ChordGenerator()
+    fp = cg.chords_to_midi(chords)
     temp_chord_midi = pretty_midi.PrettyMIDI(fp)
     pr = temp_chord_midi.get_piano_roll(fs=12)
 
@@ -47,12 +50,22 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     pr_midi = piano_roll_to_pretty_midi(pr_save, fs=12)
     pr_midi.write('chords.mid')
 
+    return pr_save, pr, pr_length
+
+
+def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano'):
+    # 1. Generate chords
+    chords = generate_chords(chords, bar_number=bar_number)
+
+    # 2. Convert chords to piano roll
+    pr_save, pr, pr_length = convert_chords_to_piano_roll(chords)
+
     # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
     if MODEL_NAME in ["attention", "bidem"]:
         dp = DataPipeline()
-        print(pr_save.shape)
+        # print(pr_save.shape)
         chord_indices = dp.convert_chord_to_indices(pr_save)
-        print(chord_indices.shape)
+        # print(chord_indices.shape)
 
     # 3. Generate notes given chords
     chord_to_note_generator = ChordToNoteGenerator()
@@ -79,19 +92,82 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     print('Song generation done.')
 
 
-def merge_melody_with_chords(melody_file, chord_file, song_file):
-    melody = MidiFile(melody_file)
-    chord = MidiFile(chord_file)
-    melody.tracks.append(chord.tracks[-1])
+def generate_song_given_notes(notes, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano'):
+    notes = __resize_note_array(notes)      # assume we have 48 notes here always
+    ntcg = NoteToChordGenerator()
+    chords_generated = ntcg.generate_chords_from_note(notes, is_fast_load=True)
+    chords_generated = np.trim_zeros(chords_generated, 'b')[:48]          # remove trailing zeros
+    reduced_chords = __reduce_chord_array(chords_generated)
 
-    # change each track to different channel
-    for i in range(len(melody.tracks)):
-        track = melody.tracks[i]
-        for msg in track:
-            if hasattr(msg, 'channel'):
-                msg.channel = i
+    cg = ChordGenerator()
+    chord_texts = []
+    for c in reduced_chords:
+        chord_texts.append(cg.id_to_chord(c))
 
-    melody.save(song_file)
+    chords = generate_chords(chord_texts, bar_number=bar_number)
+
+    # TODO: chords grafting
+
+    # 2. Convert chords to piano roll
+    pr_save, pr, pr_length = convert_chords_to_piano_roll(chords)
+
+    # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
+    if MODEL_NAME in ["attention", "bidem"]:
+        dp = DataPipeline()
+        # print(pr_save.shape)
+        chord_indices = dp.convert_chord_to_indices(pr_save)
+        # print(chord_indices.shape)
+
+    # 3. Generate notes given chords
+    chord_to_note_generator = ChordToNoteGenerator()
+    chord_to_note_generator.load_model(MODEL_NAME)
+
+    if MODEL_NAME in ["attention", "bidem"]:
+        melody = chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True, is_return=True)
+    else:
+        melody = chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=False)
+
+    melody = np.argmax(melody, axis=0)
+
+    # 4. Grafting
+    if os.path.isfile('melody.mid'):
+        os.remove('melody.mid')
+    for i in range(len(notes)):
+        melody[i] = notes[i]
+    melody_pr = np.transpose(to_categorical(melody, num_classes=128), (1,0))
+    melody_pr[melody_pr > 0] = 90
+    melody_pr = melody_pr[:, :pr_length]
+    print(melody_pr.shape)
+    melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
+    melody_midi.write('melody.mid')
+
+    os.remove('chords_to_midi.mid')
+
+    # 5. Post processing - merging, changing instruments, etc.
+    song_styling('melody.mid', 'chords.mid', 'song.mid', melody_instrument=melody_instrument,
+                 chord_instrument=chord_instrument, style=style, chords=chords)
+    # song_styling('melody-actual.mid', 'chords.mid', 'song-actual.mid', melody_instrument=melody_instrument,
+    #              chord_instrument=chord_instrument, style=style, chords=chords)
+    print('Song generation done.')
+
+
+def __reduce_chord_array(chord_array):
+    result = [chord_array[0]]
+    cur = chord_array[0]
+    for k in chord_array:
+        if k != cur:
+            result.append(k)
+            cur = k
+    if k != result[-1]:
+        result.append(k)
+    return np.array(result)
+
+
+def __resize_note_array(notes):
+    notes = np.array(notes)
+    if len(notes.shape) == 1:
+        notes = np.expand_dims(notes, axis=-1)
+    return np.squeeze(np.resize(notes, (24,1)))
 
 
 def change_midi_instrument(file_name, target_instrument):
@@ -147,6 +223,7 @@ def song_styling(melody_file, chord_file, song_file, melody_instrument=0, chord_
 
 def add_drum_beats(song_file, beat_style=1):
     # choose beat style
+    print(os.getcwd())
     if beat_style == 1:
         drum_mid = MidiFile('../generator/Alone.mid')
 
@@ -189,29 +266,34 @@ def add_bass(song_file, chords, bass_instrument=34):
 
 
 if __name__ == "__main__":
+    res = generate_song_given_notes([60, 60, 60, 62, 62, 62, 64, 64, 64, 64, 65, 65,
+                                     65, 65, 67, 67, 67, 67, 67, 67])
+
+    print(res)
+
     # for i in range(10):
     # song_post_processing('melody.mid', 'chords.mid', 'song.mid', style='techno')
-    generate_song(bar_number=16, style='church', chords=['D:maj', 'A:maj'])
-
-    melody_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/melody.mid')
-    chord_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/chords.mid')
-    melody_pr = melody_mid.get_piano_roll(fs=12)
-    chord_pr = chord_mid.get_piano_roll(fs=12)
-
-    pr_length = 384
-    melody_pr = melody_pr[:, :pr_length]
-    chord_pr = chord_pr[:, :pr_length]
-    print(melody_pr.shape)
-    melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
-    chord_midi = piano_roll_to_pretty_midi(chord_pr, fs=12)
-    melody_midi.write('melody.mid')
-    chord_midi.write('chords.mid')
-    melody_midi = MidiFile('melody.mid')
-    chord_midi = MidiFile('chords.mid')
-    melody_midi.tracks.append(chord_midi.tracks[-1])
-    melody_midi.save('song.mid')
-
-    song_styling('melody.mid', 'chords.mid', 'song.mid', style="techno")
+    # generate_song(bar_number=16, style='church', chords=['D:maj', 'A:maj'])
+    #
+    # melody_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/melody.mid')
+    # chord_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/chords.mid')
+    # melody_pr = melody_mid.get_piano_roll(fs=12)
+    # chord_pr = chord_mid.get_piano_roll(fs=12)
+    #
+    # pr_length = 384
+    # melody_pr = melody_pr[:, :pr_length]
+    # chord_pr = chord_pr[:, :pr_length]
+    # print(melody_pr.shape)
+    # melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
+    # chord_midi = piano_roll_to_pretty_midi(chord_pr, fs=12)
+    # melody_midi.write('melody.mid')
+    # chord_midi.write('chords.mid')
+    # melody_midi = MidiFile('melody.mid')
+    # chord_midi = MidiFile('chords.mid')
+    # melody_midi.tracks.append(chord_midi.tracks[-1])
+    # melody_midi.save('song.mid')
+    #
+    # song_styling('melody.mid', 'chords.mid', 'song.mid', style="techno")
 
 
 

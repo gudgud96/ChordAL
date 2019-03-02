@@ -3,7 +3,7 @@ import random
 
 from app import app
 from flask import render_template, request, flash
-from generator.song_generator import generate_song, song_styling
+from generator.song_generator import generate_song, song_styling, generate_song_given_notes
 import os
 
 app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
@@ -90,6 +90,46 @@ def play():
     return render_template('result.html', message=message, song1=chosen_songs[0], song2=chosen_songs[1],
                            song3=chosen_songs[2], song4=chosen_songs[3], song5=chosen_songs[4],
                            style=None, download_link=download_link)
+
+
+@app.route("/play_notes", methods=['POST'])
+def play_notes():
+    notes = request.form['notes']
+    bar_number = request.form['bar_number']
+    style = request.form['style'].lower()
+    if style == '':
+        style = 'techno'
+
+    # Preprocess chords and bar numbers
+    if notes == '':
+        if bar_number == '':
+            generate_song_given_notes(style=style)
+        else:
+            generate_song_given_notes(bar_number=int(bar_number), style=style)
+    else:
+        note_lst = notes.replace(' ', '').split(',')
+        if bar_number == '':
+            generate_song_given_notes(notes=note_lst, style=style)
+        else:
+            generate_song_given_notes(notes=note_lst, bar_number=int(bar_number), style=style)
+
+    # Move generated song files
+    folder_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    os.mkdir('app/static/' + folder_name + '/')
+    os.rename('melody.mid', 'app/static/' + folder_name + '/melody.mid')
+    os.rename('chords.mid', 'app/static/' + folder_name + '/chords.mid')
+    os.rename('song.mid', 'app/static/' + folder_name + '/song.mid')
+    os.rename('example_chord.txt', 'app/static/' + folder_name + '/example_chord.txt')
+    os.rename('result_chord.txt', 'app/static/' + folder_name + '/result_chord.txt')
+
+    message = "MIDIjs.play('static/" + folder_name + "/song.mid');"
+    download_link = 'static/' + folder_name + "/song.mid"
+
+    chosen_songs = random_choose_song()
+    return render_template('result.html', message=message, song1=chosen_songs[0], song2=chosen_songs[1],
+                           song3=chosen_songs[2], song4=chosen_songs[3], song5=chosen_songs[4],
+                           style=None, download_link=download_link)
+
 
 @app.route("/style", methods=['POST'])
 def style():

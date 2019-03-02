@@ -137,6 +137,16 @@ class ModelBuilder:
         model.add(Activation('softmax'))
         return model
 
+    def build_bidirectional_rnn_model_no_embeddings(self, input_dim, output_dim=128):
+        model = Sequential()
+        model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
+        model.add(Dropout(0.2))
+        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+        model.add(Dropout(0.2))
+        model.add(TimeDistributed(Dense(output_dim)))  # 128 notes to output, multi-class
+        model.add(Activation('softmax'))
+        return model
+
     def build_bidirectional_rnn_model(self, input_dim, output_dim=128):
         '''
         Build bidirectional RNN model using LSTMs.

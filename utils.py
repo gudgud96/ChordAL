@@ -1,5 +1,7 @@
 import numpy as np
 import pretty_midi
+from mido import MidiFile
+
 
 def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
     '''Convert a Piano Roll array into a PrettyMidi object
@@ -78,6 +80,21 @@ def chord_index_to_piano_roll(chord_indices):
             res[i][base_note + 7] = 90
 
     return np.transpose(res, (1,0))
+
+
+def merge_melody_with_chords(melody_file, chord_file, song_file):
+    melody = MidiFile(melody_file)
+    chord = MidiFile(chord_file)
+    melody.tracks.append(chord.tracks[-1])
+
+    # change each track to different channel
+    for i in range(len(melody.tracks)):
+        track = melody.tracks[i]
+        for msg in track:
+            if hasattr(msg, 'channel'):
+                msg.channel = i
+
+    melody.save(song_file)
 
 
 
