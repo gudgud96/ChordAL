@@ -251,6 +251,19 @@ class DataPipeline:
         print("Loading takes {} seconds.".format(time.time() - t1))
         return chords_1, melodies_1
 
+    def get_csv_nottingham_cleaned_preload_embeddings(self):
+        print('Loading csv-nottingham cleaned preload embeddings...')
+        fname = "csv-nottingham"
+        t1 = time.time()
+        print('Loading from {}'.format("../dataset/" + fname))
+        chords_1 = np.load("../dataset/" + fname + "/chords_merged_cleaned_embeddings.npy")
+        melodies_1 = np.load("../dataset/" + fname + "/melodies_merged_cleaned.npy")
+
+        print(chords_1.shape)
+        print(melodies_1.shape)
+        print("Loading takes {} seconds.".format(time.time() - t1))
+        return chords_1, melodies_1
+
 
     def __save_nottingham_piano_roll(self, start, end, i, FS=12, is_shifted=True):
         if not is_shifted:

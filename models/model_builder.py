@@ -10,12 +10,14 @@ from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
     Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional, dot, concatenate, CuDNNLSTM
+from keras.regularizers import l1, l2
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
 from chord.chord_generator import NUM_CLASSES
 from models.keras_attention_wrapper import AttentionDecoder
+from keras.optimizers import Adam
 
 
 class ModelBuilder:
@@ -138,11 +140,12 @@ class ModelBuilder:
         return model
 
     def build_bidirectional_rnn_model_no_embeddings(self, input_dim, output_dim=128):
+        print("Bias regularizer = 0.01, Recurrent regularizer = 0.01")
         model = Sequential()
-        model.add(Bidirectional(CuDNNLSTM(64, return_sequences=True), input_shape=input_dim))
-        model.add(Dropout(0.2))
-        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=True)))
-        model.add(Dropout(0.2))
+        model.add(Bidirectional(CuDNNLSTM(64, bias_regularizer=l2(0.01), recurrent_regularizer=l2(0.01), return_sequences=True), input_shape=input_dim))
+        model.add(Dropout(0.4))
+        model.add(Bidirectional(CuDNNLSTM(64, bias_regularizer=l2(0.01), recurrent_regularizer=l2(0.01), return_sequences=True)))
+        model.add(Dropout(0.4))
         model.add(TimeDistributed(Dense(output_dim)))  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
         return model
@@ -154,10 +157,10 @@ class ModelBuilder:
         :return: model
         '''
         model = Sequential()
-        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
-        model.add(Bidirectional(CuDNNLSTM(64, return_sequences=True)))
+        # model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Bidirectional(CuDNNLSTM(64, bias_regularizer=l2(0.01), recurrent_regularizer=l2(0.01), return_sequences=True), input_shape=input_dim))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(CuDNNLSTM(128, return_sequences=True)))
+        model.add(Bidirectional(CuDNNLSTM(64, bias_regularizer=l2(0.01), recurrent_regularizer=l2(0.01), return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(TimeDistributed(Dense(output_dim)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))

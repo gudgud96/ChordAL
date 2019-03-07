@@ -9,6 +9,7 @@ sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 import os
 from keras.models import load_model
 from keras import backend as K
+from keras.utils import to_categorical
 from utils import piano_roll_to_pretty_midi
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
@@ -35,7 +36,7 @@ class ChordToNoteGenerator:
 
         # Train test split
         self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src="nottingham-embed")
-        # print('Chords shape: {}  Melodies shape: {}'.format(chords.shape, melodies.shape))
+        print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
 
         # Load / train model
         if model_name == 'basic_rnn':
@@ -45,9 +46,39 @@ class ChordToNoteGenerator:
                 model.load_weights("basic_rnn.h5")
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-                model = mb.build_attention_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model = mb.train_model(model, epochs, loss="categorical_crossentropy")
-                model.save_weights("basic_rnn.h5")
+                model.save_weights("bidirectional_embedding_preload.h5")
+
+        elif model_name == 'bidirectional_embedding':
+            if os.path.exists("bidirectional_embedding_preload.h5"):
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model.load_weights("bidirectional_embedding_preload.h5")
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save_weights("bidirectional_embedding_preload.h5")
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save_weights("bidirectional_embedding_preload.h5")
+
+        elif model_name == 'bidirectional': # no embedding
+            self.X_train = np.expand_dims(self.X_train, axis=-1)
+            self.X_test = np.expand_dims(self.X_test, axis=-1)
+            if os.path.exists("bidirectional.h5"):
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model.load_weights("bidirectional.h5")
+                print("Loading pre-trained...")
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save_weights("bidirectional.h5")
+            else:
+                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+                model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save_weights("bidirectional.h5")
+        
 
         self.model = model
 
@@ -163,8 +194,10 @@ class ChordToNoteGenerator:
 
         elif src == 'nottingham-embed':
             dp = DataPipeline()
-            chords, melodies = dp.get_nottingham_embed(is_small_set=True)
-            melodies[melodies > 0] = 1
+            #chords, melodies = dp.get_nottingham_embed(is_small_set=True)
+            #melodies[melodies > 0] = 1
+            # chords, melodies = dp.get_csv_nottingham_cleaned_preload_embeddings()
+            chords, melodies = dp.get_csv_nottingham_cleaned()
             cshape, mshape = chords.shape, melodies.shape
             print(chords.shape, melodies.shape)
 
@@ -174,7 +207,8 @@ class ChordToNoteGenerator:
         if model == 'basic_rnn':
             chords, melodies = np.transpose(chords, (0, 2, 1)), np.transpose(melodies, (0, 2, 1))
         elif model == 'basic_rnn_embed':
-            melodies = np.transpose(melodies, (0, 2, 1))
+            # melodies = np.transpose(melodies, (0, 2, 1))
+            melodies = to_categorical(melodies, num_classes=128)
 
         return chords, melodies
 
@@ -193,7 +227,7 @@ class ChordToNoteGenerator:
 
 if __name__ == "__main__":
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=5)
+    generator.train_chord_to_melody_model(epochs=250, model_name="bidirectional")
     #ind = 10
 
     #chords = np.transpose(generator.X_test[ind], (1,0))

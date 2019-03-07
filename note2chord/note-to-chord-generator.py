@@ -97,6 +97,9 @@ class NoteToChordGenerator:
                 model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=self.X_train.shape[1:],
                                                  output_dim=self.Y_train.shape[-1])
                 model.load_weights(model_file)
+                # continue training
+                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model.save_weights(model_file)
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=self.X_train.shape[1:],
@@ -171,4 +174,4 @@ class NoteToChordGenerator:
 if __name__ == "__main__":
     generator = NoteToChordGenerator()
     #generator.generate_chords_from_note(model_name="bidirectional")
-    generator.train_melody_to_chord_model(epochs=500, model_name="bidirectional")
+    generator.train_melody_to_chord_model(epochs=250, model_name="bidirectional")
