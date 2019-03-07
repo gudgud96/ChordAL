@@ -3,13 +3,19 @@ Author:     Tan Hao Hao
 Project:    deeppop
 Purpose:    Chord to note generator.
 '''
+import pickle
 import sys,os
+
+from keras.utils import to_categorical
+
+from chord.chord_generator import ChordGenerator
+
 sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 
 import os
 from keras.models import load_model
 from keras import backend as K
-from utils import piano_roll_to_pretty_midi
+from utils import piano_roll_to_pretty_midi, chord_index_to_piano_roll
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
 import numpy as np
@@ -57,50 +63,45 @@ class ChordToNoteGenerator:
 
         if not is_fast_load:
             # Train test split
-            if model_name == 'bidem' or model_name == 'attention':
+            if model_name == 'bidem' or model_name == 'attention' or model_name == "bidem_preload":
                 self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src='nottingham-embed')
                 print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
             else:
                 self.__prepare_data_tt_splited(tt_split=tt_split, model_name=model_name, src='nottingham')
                 print('Chords shape: {}  Melodies shape: {}'.format(self.X_train.shape, self.Y_train.shape))
 
+        if is_fast_load:
+            mb = ModelBuilder(None, None, None, None)
+        else:
+            mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
+
         if model_name == 'basic_rnn_normalized':
-            if is_fast_load:
-                mb = ModelBuilder(None, None, None, None)
-            else:
-                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
             self.model = mb.build_basic_rnn_model(input_dim=(1200, 128))
-            weights_path = '../note/basic_rnn_weights_500.h5'
+            weights_path = '../note/active_models/basic_rnn_weights_500.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
         elif model_name == 'basic_rnn_unnormalized':
-            if is_fast_load:
-                mb = ModelBuilder(None, None, None, None)
-            else:
-                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
             self.model = mb.build_basic_rnn_model(input_dim=(1200, 128))
-            weights_path = '../note/basic_rnn_weights_500_unnormalized.h5'
+            weights_path = '../note/active_models/basic_rnn_weights_500_unnormalized.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
         elif model_name == 'bidem':
-            if is_fast_load:
-                mb = ModelBuilder(None, None, None, None)
-            else:
-                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
-            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
-            weights_path = '../note/bidem_weights_2000.h5'
+            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,1))
+            weights_path = '../note/active_models/bidirectional_regularized_500.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
         elif model_name == 'attention':
-            if is_fast_load:
-                mb = ModelBuilder(None, None, None, None)
-            else:
-                mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
             self.model = mb.build_attention_bidirectional_rnn_model(input_dim=(1200,))
-            weights_path = '../note/attention_weights_1000.h5'
+            weights_path = '../note/active_models/attention_weights_1000.h5'
+            print('Loading ' + weights_path + '...')
+            self.model.load_weights(weights_path)
+
+        elif model_name == 'bidem_preload':
+            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200, 32))
+            weights_path = '../note/active_models/bidirectional_embedding_preload.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
@@ -191,25 +192,51 @@ class ChordToNoteGenerator:
                                                                melodies[split_ind:]
 
 
-if __name__ == "__main__":
+def evaluate_preload_embeddings():
+    model_name = "bidem"
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=5)
-    #ind = 10
+    generator.load_model(model_name=model_name, is_fast_load=False)
 
-    #chords = np.transpose(generator.X_test[ind], (1,0))
-    #from utils import piano_roll_to_pretty_midi
+    ind = 6
+    # chords = np.transpose(generator.X_test[ind], (1,0))
+    chords = generator.X_test[ind]
+    print(chords.shape)
+    from utils import piano_roll_to_pretty_midi
 
-    #chords_temp = np.copy(chords)
-    #chords_temp[chords_temp > 0] = 90
-    #c_midi = piano_roll_to_pretty_midi(chords_temp, fs=12)
-    #c_midi.write('chord.mid')
+    chords_temp = np.copy(chords)
+    chord_midi = piano_roll_to_pretty_midi(chord_index_to_piano_roll(chords_temp), fs=12)
+    chord_midi.write('chord.mid')
 
-    #generator.generate_notes_from_chord(chords=chords)
-    #from generator.song_generator import merge_melody_with_chords
-    #merge_melody_with_chords('melody.mid', 'chord.mid', 'song.mid')
+    # this is only for embedding preload
+    if model_name == "bidem_preload":
+        chords_embeddings = []
+        infile = open('../dataset/chord_embeddings_dict.pickle', 'rb')
+        embedding_dict = pickle.load(infile)
+        for chord in chords:
+            if chord == 0:
+                chords_embeddings.append(np.zeros((32,)))
+            else:
+                chords_embeddings.append(embedding_dict[chord])
+        chords = np.array(chords_embeddings)
 
-    #actual = np.transpose(generator.Y_test[ind], (1, 0))
-    #actual[actual > 0] = 90
-    #a_midi = piano_roll_to_pretty_midi(actual, fs=12)
-    #a_midi.write('actual.mid')
-    #merge_melody_with_chords('actual.mid', 'chord.mid', 'song-actual.mid')
+    chords = np.expand_dims(chords, axis=-1)
+
+    generator.generate_notes_from_chord(chords=chords)
+    from generator.song_generator import merge_melody_with_chords
+    merge_melody_with_chords('melody.mid', 'chord.mid', 'song.mid')
+
+    actual = np.transpose(generator.Y_test[ind], (1, 0))
+    actual[actual > 0] = 90
+    a_midi = piano_roll_to_pretty_midi(actual, fs=12)
+    a_midi.write('actual.mid')
+    merge_melody_with_chords('actual.mid', 'chord.mid', 'song-actual.mid')
+
+
+def beam_search():
+    cg = ChordToNoteGenerator()
+    cg.train_chord_to_melody_model(model_name="seq2seq", epochs=3)
+
+
+if __name__ == "__main__":
+    # evaluate_preload_embeddings()
+    beam_search()

@@ -104,7 +104,7 @@ class NoteToChordGenerator:
             else:
                 input_dim = (MAX_NOTES, 128)
 
-            model_file = "../note2chord/bidirectional_rnn.h5"
+            model_file = "../note2chord/bidirectional_rnn_recurrent_regularized_500.h5"
             if os.path.exists(model_file):
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=input_dim,
@@ -182,6 +182,10 @@ if __name__ == "__main__":
     generator = NoteToChordGenerator()
     dp = DataPipeline()
     chords, melodies = dp.get_csv_nottingham_cleaned()
-    result_indices = generator.generate_chords_from_note(melodies[1234])
+    result_indices = generator.generate_chords_from_note(melodies[1234], is_fast_load=True)
+
+    chord_midi = piano_roll_to_pretty_midi(chord_index_to_piano_roll(chords[1234]), fs=12)
+    chord_midi.write('actual_chord.mid')
+    merge_melody_with_chords('melody.mid', 'actual_chord.mid', 'actual_song.mid')
     # print(result_indices)
-    print(len(result_indices))
+    # print(len(result_indices))

@@ -164,6 +164,15 @@ def move_files_to_evaluation_folder():
     os.remove('result_chord.txt')
 
 
+def export_chords_as_midi():
+    lines = open('evaluation_results/1/chords_experiment.txt').readlines()
+    cg = ChordGenerator()
+    for i in range(len(lines)):
+        chords = lines[i].strip().split(' > ')[:12]     # only take 12 chords
+        cg.chords_to_midi(chords)
+        os.rename("chords_to_midi.mid", "chords-{}.mid".format(i + 1))
+
+
 def main():
     chords_experiment = 'chords_experiment.txt'
     evaluation_text = 'evaluation.txt'
@@ -206,5 +215,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-
+    # main()
+    export_chords_as_midi()

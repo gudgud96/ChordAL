@@ -28,7 +28,7 @@ class ModelBuilder:
     def build_seq2seq_model(self, num_encoder_tokens, num_decoder_tokens, latent_dim):
 
         # Define an input sequence and process it.
-        encoder_inputs = Input(shape=(None, num_encoder_tokens))
+        encoder_inputs = Input(shape=(1200, num_encoder_tokens))
         encoder = LSTM(latent_dim, return_state=True)
         encoder_outputs, state_h, state_c = encoder(encoder_inputs)
 
@@ -36,7 +36,7 @@ class ModelBuilder:
         encoder_states = [state_h, state_c]
 
         # Set up the decoder, using `encoder_states` as initial state.
-        decoder_inputs = Input(shape=(None, num_decoder_tokens))
+        decoder_inputs = Input(shape=(1200, num_decoder_tokens))
         # We set up our decoder to return full output sequences,
         # and to return internal states as well. We don't use the
         # return states in the training model, but we will use them in inference.
@@ -141,7 +141,7 @@ class ModelBuilder:
         model = Sequential()
         model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(TimeDistributed(Dense(output_dim)))  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
@@ -154,10 +154,15 @@ class ModelBuilder:
         :return: model
         '''
         model = Sequential()
-        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
-        model.add(Bidirectional(LSTM(64, return_sequences=True)))
+        # model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        # model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
+
+        model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
+
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
+        # model.add(Bidirectional(LSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(TimeDistributed(Dense(output_dim)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))

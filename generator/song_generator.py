@@ -4,6 +4,7 @@ Project:    deeppop
 Purpose:    A complete song generator.
 '''
 import os
+import pickle
 from collections import Counter
 
 from keras.utils import to_categorical
@@ -61,7 +62,7 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     pr_save, pr, pr_length = convert_chords_to_piano_roll(chords)
 
     # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
-    if MODEL_NAME in ["attention", "bidem"]:
+    if MODEL_NAME in ["attention", "bidem", "bidem_preload"]:
         dp = DataPipeline()
         # print(pr_save.shape)
         chord_indices = dp.convert_chord_to_indices(pr_save)
@@ -71,7 +72,20 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     chord_to_note_generator = ChordToNoteGenerator()
     chord_to_note_generator.load_model(MODEL_NAME)
 
-    if MODEL_NAME in ["attention", "bidem"]:
+    if MODEL_NAME in ["attention", "bidem", "bidem_preload"]:
+
+        # preload embeddings
+        if MODEL_NAME == "bidem_preload":
+            chords_embeddings = []
+            infile = open('../dataset/chord_embeddings_dict.pickle', 'rb')
+            embedding_dict = pickle.load(infile)
+            for chord in chord_indices:
+                if chord == 0:
+                    chords_embeddings.append(np.zeros((32,)))
+                else:
+                    chords_embeddings.append(embedding_dict[chord])
+            chord_indices = np.array(chords_embeddings)
+
         chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True)
     else:
         chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=False)
