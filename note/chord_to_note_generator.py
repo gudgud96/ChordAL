@@ -6,20 +6,13 @@ Purpose:    Chord to note generator.
 import pickle
 import sys,os
 
-from keras.utils import to_categorical
-
-from chord.chord_generator import ChordGenerator
-
 sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 
-import os
-from keras.models import load_model
 from keras import backend as K
-from utils import piano_roll_to_pretty_midi, chord_index_to_piano_roll
+from utils import piano_roll_to_pretty_midi, chord_index_to_piano_roll, convert_chord_indices_to_embeddings
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 class ChordToNoteGenerator:
@@ -29,6 +22,7 @@ class ChordToNoteGenerator:
         self.X_test = None
         self.Y_test = None
         self.model = None
+        self.model_name = None
 
     def train_chord_to_melody_model(self, tt_split=0.9, epochs=100, model_name='basic_rnn'):
         '''
@@ -61,6 +55,8 @@ class ChordToNoteGenerator:
         # clear session to avoid any errors
         K.clear_session()
 
+        print("Chosen model: {}".format(model_name))
+
         if not is_fast_load:
             # Train test split
             if model_name == 'bidem' or model_name == 'attention' or model_name == "bidem_preload":
@@ -88,7 +84,13 @@ class ChordToNoteGenerator:
             self.model.load_weights(weights_path)
 
         elif model_name == 'bidem':
-            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,1))
+            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
+            weights_path = '../note/active_models/bidem_weights_500.h5'
+            print('Loading ' + weights_path + '...')
+            self.model.load_weights(weights_path)
+
+        elif model_name == 'bidem_regularized':
+            self.model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=(1200,1))
             weights_path = '../note/active_models/bidirectional_regularized_500.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
@@ -100,13 +102,16 @@ class ChordToNoteGenerator:
             self.model.load_weights(weights_path)
 
         elif model_name == 'bidem_preload':
-            self.model = mb.build_bidirectional_rnn_model(input_dim=(1200, 32))
+            self.model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=(1200, 32))
             weights_path = '../note/active_models/bidirectional_embedding_preload.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
         else:
             print('No model name: {}'.format(model_name))
+            return
+
+        self.model_name = model_name
 
     def generate_notes_from_chord(self, chords, train_loss='softmax', is_bidem=True, is_return=False):
         '''
@@ -114,6 +119,12 @@ class ChordToNoteGenerator:
         :param chords: chord piano roll - (128, x)
         :return: None. Write Midi out as melody.mid.
         '''
+        # Preprocessing
+        if self.model_name == "bidem_preload":
+            chords = convert_chord_indices_to_embeddings(chords)
+        elif self.model_name == "bidem_regularized":
+            chords = np.expand_dims(chords, axis=-1)
+
         # Prediction
         if is_bidem:
             y = self.model.predict(np.expand_dims(chords, axis=0))

@@ -215,5 +215,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    export_chords_as_midi()
+    main()
+    # export_chords_as_midi()

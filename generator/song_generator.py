@@ -19,6 +19,7 @@ from utils import piano_roll_to_pretty_midi, merge_melody_with_chords
 from mido import MidiFile
 
 MODEL_NAME = "bidem"
+MODELS_TO_NOTE = ["attention", "bidem", "bidem_preload", "bidem_preload", "bidem_regularized"]
 
 
 def generate_chords(chords, bar_number):
@@ -54,7 +55,8 @@ def convert_chords_to_piano_roll(chords):
     return pr_save, pr, pr_length
 
 
-def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano'):
+def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrument=0,
+                  style='piano', model_name='bidem'):
     # 1. Generate chords
     chords = generate_chords(chords, bar_number=bar_number)
 
@@ -62,7 +64,7 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     pr_save, pr, pr_length = convert_chords_to_piano_roll(chords)
 
     # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
-    if MODEL_NAME in ["attention", "bidem", "bidem_preload"]:
+    if model_name in MODELS_TO_NOTE:
         dp = DataPipeline()
         # print(pr_save.shape)
         chord_indices = dp.convert_chord_to_indices(pr_save)
@@ -70,22 +72,9 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
 
     # 3. Generate notes given chords
     chord_to_note_generator = ChordToNoteGenerator()
-    chord_to_note_generator.load_model(MODEL_NAME)
+    chord_to_note_generator.load_model(model_name)
 
-    if MODEL_NAME in ["attention", "bidem", "bidem_preload"]:
-
-        # preload embeddings
-        if MODEL_NAME == "bidem_preload":
-            chords_embeddings = []
-            infile = open('../dataset/chord_embeddings_dict.pickle', 'rb')
-            embedding_dict = pickle.load(infile)
-            for chord in chord_indices:
-                if chord == 0:
-                    chords_embeddings.append(np.zeros((32,)))
-                else:
-                    chords_embeddings.append(embedding_dict[chord])
-            chord_indices = np.array(chords_embeddings)
-
+    if MODEL_NAME in MODELS_TO_NOTE:
         chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True)
     else:
         chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=False)
@@ -106,7 +95,8 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     print('Song generation done.')
 
 
-def generate_song_given_notes(notes, bar_number=16, melody_instrument=0, chord_instrument=0, style='piano'):
+def generate_song_given_notes(notes, bar_number=16, melody_instrument=0, chord_instrument=0,
+                              style='piano', model_name="bidem"):
     notes = __resize_note_array(notes)      # assume we have 48 notes here always
     ntcg = NoteToChordGenerator()
     chords_generated = ntcg.generate_chords_from_note(notes, is_fast_load=True)
@@ -126,7 +116,7 @@ def generate_song_given_notes(notes, bar_number=16, melody_instrument=0, chord_i
     pr_save, pr, pr_length = convert_chords_to_piano_roll(chords)
 
     # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
-    if MODEL_NAME in ["attention", "bidem"]:
+    if model_name in MODELS_TO_NOTE:
         dp = DataPipeline()
         # print(pr_save.shape)
         chord_indices = dp.convert_chord_to_indices(pr_save)
@@ -134,10 +124,11 @@ def generate_song_given_notes(notes, bar_number=16, melody_instrument=0, chord_i
 
     # 3. Generate notes given chords
     chord_to_note_generator = ChordToNoteGenerator()
-    chord_to_note_generator.load_model(MODEL_NAME)
+    chord_to_note_generator.load_model(model_name)
 
-    if MODEL_NAME in ["attention", "bidem"]:
-        melody = chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True, is_return=True)
+    if model_name in MODELS_TO_NOTE:
+        melody = chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True,
+                                                                   is_return=True)
     else:
         melody = chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=False)
 

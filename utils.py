@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 import pretty_midi
 from mido import MidiFile
@@ -97,4 +98,14 @@ def merge_melody_with_chords(melody_file, chord_file, song_file):
     melody.save(song_file)
 
 
+def convert_chord_indices_to_embeddings(chords):
+    res = []
+    pickle_in = open("../dataset/chord_embeddings_dict.pickle", 'rb')
+    embeddings_dict = pickle.load(pickle_in)
+    embeddings_dict[0] = np.zeros((32,))
+
+    for chord in chords:
+        res.append(embeddings_dict[chord])
+
+    return np.array(res)
 

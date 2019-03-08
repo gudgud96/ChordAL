@@ -7,6 +7,8 @@ from generator.song_generator import generate_song, song_styling, generate_song_
 import os
 
 app.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
+MODEL_DICT = {"Bidirectional": "bidem", "Regularized": "bidem_regularized",
+              "Embedding": "bidem_preload", "Seq2seq": "seq2seq"}
 
 
 @app.route('/')
@@ -48,19 +50,16 @@ def random_choose_song():
 @app.route("/play", methods=['POST'])
 def play():
     # Get chords and bar numbers from user
-    # flash('Loading...')
     chords = request.form['chords']
-    bar_number = request.form['bar_number']
+    model_name = MODEL_DICT[request.form['model_name']]
     style = request.form['style'].lower()
     if style == '':
         style = 'techno'
 
     # Preprocess chords and bar numbers
     if chords == '':
-        if bar_number == '':
-            generate_song(style=style)
-        else:
-            generate_song(bar_number=int(bar_number), style=style)
+        generate_song(style=style, model_name=model_name)
+
     else:
         chord_lst = chords.replace(' ', '').split(',')
         for i in range(len(chord_lst)):
@@ -68,11 +67,7 @@ def play():
             tonality = 'maj' if tonality == '+' else 'min'
             key = key.upper()
             chord_lst[i] = key + ':' + tonality
-
-        if bar_number == '':
-            generate_song(chords=chord_lst, style=style)
-        else:
-            generate_song(chords=chord_lst, bar_number=int(bar_number), style=style)
+        generate_song(chords=chord_lst, style=style, model_name=model_name)
 
     # Move generated song files
     folder_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -95,23 +90,18 @@ def play():
 @app.route("/play_notes", methods=['POST'])
 def play_notes():
     notes = request.form['notes']
-    bar_number = request.form['bar_number']
+    model_name = MODEL_DICT[request.form['model_name']]
     style = request.form['style'].lower()
     if style == '':
         style = 'techno'
 
     # Preprocess chords and bar numbers
     if notes == '':
-        if bar_number == '':
-            generate_song_given_notes(style=style)
-        else:
-            generate_song_given_notes(bar_number=int(bar_number), style=style)
+        generate_song_given_notes(style=style, model_name=model_name)
+
     else:
         note_lst = notes.replace(' ', '').split(',')
-        if bar_number == '':
-            generate_song_given_notes(notes=note_lst, style=style)
-        else:
-            generate_song_given_notes(notes=note_lst, bar_number=int(bar_number), style=style)
+        generate_song_given_notes(notes=note_lst, style=style, model_name=model_name)
 
     # Move generated song files
     folder_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

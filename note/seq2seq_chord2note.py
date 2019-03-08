@@ -7,6 +7,7 @@ from keras.layers import LSTM, Dense
 import numpy as np
 from keras.optimizers import Adam
 from keras.utils import to_categorical
+from tqdm import tqdm
 
 from dataset.data_pipeline import DataPipeline
 import matplotlib.pyplot as plt
@@ -48,6 +49,58 @@ def get_data():
     return chords, melodies, melodies_target
 
 
+def beam_search(input_seq, encoder_model, decoder_model, num_decoder_tokens, beam_width=10):
+    print("Beam search")
+    candidate_list = [[128]]
+    pre_dict = {(128,): 1}
+
+    # Encode the input as state vectors.
+    states_value = encoder_model.predict(input_seq)
+
+    for i in tqdm(range(600)):
+        new_candidate_list = []
+        cur_dict = {}
+
+        for k in candidate_list:
+            input_array = np.zeros((1, 601, num_decoder_tokens))
+            for index, x in enumerate(k):
+                input_array[0, index, x] = 1.
+
+            output_tokens, h, c = decoder_model.predict([input_array] + states_value)
+            beam_indices = np.argpartition(output_tokens[0, len(k), :], -beam_width)[-beam_width:]
+            # print(beam_indices)
+            for ind in beam_indices:
+                temp = np.append(k, ind)
+                # print(temp)
+                new_candidate_list.append(temp)
+                cur_dict[tuple(temp)] = output_tokens[0, 0, ind] * pre_dict[tuple(k)]
+
+        # print(cur_dict)
+        candidate_list = sorted(cur_dict, key=cur_dict.get, reverse=True)[:beam_width]
+        candidate_list = [list(k) for k in candidate_list]
+        # print("Candidates this round: {}".format(candidate_list))
+        pre_dict = cur_dict
+
+    return candidate_list, pre_dict
+
+
+def decode_sequence(input_seq, encoder_model, decoder_model, num_decoder_tokens):
+    # Encode the input as state vectors.
+    states_value = encoder_model.predict(input_seq)
+    decoder_input = np.zeros(shape=(600, num_decoder_tokens))
+    decoder_input[0, 128] = 1.
+    for i in tqdm(range(1, 600)):
+        # print("input: ", np.argmax(decoder_input, axis=-1)[:10])
+        temp = np.expand_dims(decoder_input, axis=0)
+        output, _, _ = decoder_model.predict([temp] + states_value)
+        output = np.argmax(output, axis=-1)
+        # print("output: ", output[0][:10])
+        output_char = output[0, i]
+        # print("output_char: ", output_char)
+        decoder_input[i, output_char] = 1.
+    return np.argmax(decoder_input, axis=-1)
+
+
 def main():
     encoder_input_data, decoder_input_data, decoder_target_data = get_data()
     encoder_input_data = to_categorical(encoder_input_data, num_classes=26)
@@ -57,7 +110,7 @@ def main():
     num_encoder_tokens = 26
     num_decoder_tokens = 130
     num_duration = 50
-    latent_dim = 32
+    latent_dim = 128
 
     # Define an input sequence and process it.
     encoder_inputs = Input(shape=(None, num_encoder_tokens))
@@ -117,54 +170,25 @@ def main():
         [decoder_inputs] + decoder_states_inputs,
         [decoder_outputs] + decoder_states)
 
-    def decode_sequence(input_seq):
-        # Encode the input as state vectors.
-        states_value = encoder_model.predict(input_seq)
+    def decode(input_seq, beam_width=3):
+        if beam_width > 1:
+            candidate_list, _ = beam_search(input_seq, encoder_model, decoder_model,
+                                                     num_decoder_tokens, beam_width=beam_width)
+        else:
+            candidate_list = decode_sequence(input_seq, encoder_model, decoder_model, num_decoder_tokens)
 
-        # Generate empty target sequence of length 1.
-        target_seq = np.zeros((1, 1, num_decoder_tokens))
-        # Populate the first character of target sequence with the start character.
-        target_seq[0, 0, 128] = 1.
-
-        # Sampling loop for a batch of sequences
-        # (to simplify, here we assume a batch of size 1).
-        stop_condition = False
-        decoded_sentence = []
-
-        # 1st iteration - get first note
-        print("Target seq: {}".format(np.argmax(target_seq[0, :, :], axis=-1)))
-        output_tokens, h, c = decoder_model.predict(
-            [target_seq] + states_value)
-        print("Output seq: {} \n".format(np.argmax(output_tokens[0, :, :], axis=-1)))
-
-
-
-        while not stop_condition:
-            print("Target seq: {}".format(np.argmax(target_seq[0, :, :], axis=-1)))
-            output_tokens, h, c = decoder_model.predict(
-                [target_seq] + states_value)
-            print("Output seq: {} \n".format(np.argmax(output_tokens[0, :, :], axis=-1)))
-
-            # implement beam search
-            beam_width = 3
-            print(output_tokens.shape)
-            beam_indices = np.argpartition(output_tokens[0, 0, :], -beam_width)[-beam_width:]
-            print(beam_indices)
-            probabilities = {}
-            for i, x in enumerate(beam_indices):
-                probabilities[x] = output_tokens[0, 0, :][beam_indices[i]]
-
-
-
-
-
-        return decoded_sentence
+        return candidate_list
 
     ind = 10
     input_seq = np.expand_dims(encoder_input_data[ind], axis=0)
-    res = decode_sequence(input_seq)
-    print("res: ", res)
-    print(len(res))
+    beam_width = 5
+    res = decode(input_seq, beam_width=beam_width)
+    if beam_width == 1:
+        print(res)
+    else:
+        for r in res:
+            print("res: ", r)
+            print(len(r))
     print(np.argmax(decoder_input_data, axis=-1)[ind][:40])
     print(np.argmax(decoder_target_data, axis=-1)[ind][:40])
 

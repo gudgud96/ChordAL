@@ -3,13 +3,14 @@ from pretty_midi import pretty_midi
 from note.chord_to_note_generator import ChordToNoteGenerator
 from chord.chord_generator import ChordGenerator
 from dataset.data_pipeline import DataPipeline
-from music21 import scale
+from music21 import scale, pitch
 import numpy as np
 
-from utils import piano_roll_to_pretty_midi
+from utils import piano_roll_to_pretty_midi, merge_melody_with_chords
 
 cg = ChordGenerator()
 scale_cache = {}
+MODELS_TO_NOTE = ["bidem", "bidem_preload", "attention"]
 
 
 def form_chord_array(chords):
@@ -27,7 +28,7 @@ def get_scale_notes(chord_index):
             sc = scale.MajorScale(chord)
         else:
             sc = scale.MinorScale(chord)
-        res = [p.midi for p in sc.getPitches(chord + '2', chord + '5')]     # across 3 octaves
+        res = [p.name for p in sc.getPitches(chord + '2', chord + '3')]
         scale_cache[chord_index] = res
         return res
 
@@ -49,11 +50,13 @@ def evaluate_repeat(notes):
 
 def evaluate_outliers(notes, chord_array):
     outliers_count = 0
+    cg = ChordGenerator()
     for i in range(len(chord_array)):
         chord_index = chord_array[i]
         sc = get_scale_notes(chord_index)
-        if notes[i] not in sc:
-            print("outliers: chord {} -- note {}".format(chord_index, notes[i]))
+        if pitch.Pitch(notes[i]).name not in sc:
+            print("outliers: chord {} -- note {}".format(cg.id_to_chord(chord_index),
+                                                         pitch.Pitch(notes[i]).name))
             outliers_count += 1
     return outliers_count / len(chord_array)
 
@@ -96,9 +99,11 @@ def convert_midi_to_chord_indices(chord_sample_name):
 def move_to_note_evaluation_folder():
     folder_name = int(os.listdir('./note_evaluation_results')[-1]) + 1
     os.mkdir('./note_evaluation_results/' + str(folder_name) + '/')
-    for i in range(1, 7):
+    for i in range(1, 11):
         os.rename('melody_{}.mid'.format(i), 'note_evaluation_results/' + str(folder_name)
                   + '/melody_{}.mid'.format(i))
+        os.rename('song_{}.mid'.format(i), 'note_evaluation_results/' + str(folder_name)
+                  + '/song_{}.mid'.format(i))
     os.rename('note_evaluation.txt', 'note_evaluation_results/' + str(folder_name)
               + '/note_evaluation.txt')
     os.remove('melody.mid')
@@ -110,7 +115,7 @@ def main():
     e = open(evaluation_text, 'a+')
     total_res = {}
 
-    model_name = 'attention'            # change this line to swap different model name
+    model_name = 'basic_rnn_normalized'            # change this line to swap different model name
 
     ctng = ChordToNoteGenerator()
     ctng.load_model(model_name, is_fast_load=True)
@@ -121,7 +126,7 @@ def main():
     for chords in f:
         print('\nEvaluating file: {}...'.format(chords))
 
-        if model_name == 'bidem' or model_name == 'attention':
+        if model_name in MODELS_TO_NOTE:
             chord_array = convert_midi_to_chord_indices('chord_samples/' + chords)
             chord_array_length = len(chord_array)
             tmp = np.pad(chord_array, (0, 1200 - chord_array_length), mode='constant', constant_values=0)
@@ -131,14 +136,18 @@ def main():
             chord_array_length = pr.shape[-1]
             tmp = np.pad(pr, [(0, 0), (0, 1200 - chord_array_length)], mode='constant', constant_values=0)
 
-        notes = ctng.generate_notes_from_chord(tmp, is_return=True, is_bidem=(model_name == 'bidem'
-                                                                              or model_name == 'attention'))
+        notes = ctng.generate_notes_from_chord(tmp, is_return=True, is_bidem=(model_name in MODELS_TO_NOTE))
 
         melody_pr = pretty_midi.PrettyMIDI('melody.mid').get_piano_roll(fs=12)[:, :chord_array_length]
         melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
         melody_midi.write('melody_{}.mid'.format(counter))
-        counter += 1
 
+        # merge chords and melodies
+        merge_melody_with_chords('melody_{}.mid'.format(counter),
+                                 'chord_samples/' + chords,
+                                 'song_{}.mid'.format(counter))
+
+        counter += 1
         notes = np.argmax(notes, axis=0)[:chord_array_length]
 
         if model_name != 'bidem' and model_name != 'attention':

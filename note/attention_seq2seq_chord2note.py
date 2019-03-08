@@ -1,3 +1,7 @@
+import sys,os
+
+
+sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 import os
 
 from keras import Input, Model
@@ -9,6 +13,7 @@ from keras.utils import to_categorical
 
 from dataset.data_pipeline import DataPipeline
 import matplotlib.pyplot as plt
+import seaborn
 
 
 def get_data():
@@ -27,11 +32,11 @@ def get_data():
         len_change = pre_len - len(temp_melody)
         temp_chords = temp_chords[:len(temp_chords) - len_change]
 
-        print(len(temp_chords))
+        #print(len(temp_chords))
 
         temp_melody = np.insert(temp_melody, 0, 128)
         temp_melody = np.insert(temp_melody, temp_melody.shape[-1], 129)
-        print(len(temp_melody))
+        #print(len(temp_melody))
 
         # padding to ensure the tensors have same length
         if len(temp_melody) < 600:
@@ -52,56 +57,64 @@ def main():
     decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
     decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
 
+    print(encoder_input_data.shape, decoder_input_data.shape, decoder_target_data.shape)
+
     num_encoder_tokens = 26
     num_decoder_tokens = 130
     latent_dim = 128
+    max_length = 600
 
     # Define an input sequence and process it.
     encoder_inputs = Input(shape=(None, num_encoder_tokens))
-    encoder = LSTM(latent_dim, return_state=True)
+    print("Encoder inputs: ", encoder_inputs)
+    encoder = LSTM(latent_dim, return_sequences=True, return_state=True)
     encoder_outputs, state_h, state_c = encoder(encoder_inputs)
+    print("Encoder outputs: ", encoder_outputs)
     # We discard `encoder_outputs` and only keep the states.
     encoder_states = [state_h, state_c]
 
     # Set up the decoder, using `encoder_states` as initial state.
     decoder_inputs = Input(shape=(None, num_decoder_tokens))
+    print("Decoder inputs: ", decoder_inputs)
+
     # We set up our decoder to return full output sequences,
     # and to return internal states as well. We don't use the
     # return states in the training model, but we will use them in inference.
     decoder = LSTM(latent_dim, return_sequences=True, return_state=True)
-    decoder_outputs, _, _ = decoder(decoder_inputs, initial_state=encoder_states)
-    decoder_dense = Dense(num_decoder_tokens, activation='softmax')
-    decoder_outputs = decoder_dense(decoder_outputs)
+    decoder_outputs, _, _ = decoder(decoder_inputs, initial_state=[state_h, state_c])
+    print("Decoder outputs: ", decoder_outputs)
 
     # Added attention layer here
-    attention = dot([decoder, encoder], axes=[2, 2])
+    attention = dot([decoder_outputs, encoder_outputs], axes=[2, 2])
     attention = Activation('softmax', name='attention')(attention)
     print('attention', attention)
 
-    context = dot([attention, encoder], axes=[2, 1])
+    context = dot([attention, encoder_outputs], axes=[2, 1])
     print('context', context)
 
-    decoder_combined_context = concatenate([context, decoder])
+    decoder_combined_context = concatenate([context, decoder_outputs])
     print('decoder_combined_context', decoder_combined_context)
 
     # Has another weight + tanh layer as described in equation (5) of the paper
     output = TimeDistributed(Dense(64, activation="tanh"))(decoder_combined_context)
-    output = TimeDistributed(Dense(128, activation="softmax"))(output)
+    output = TimeDistributed(Dense(130, activation="softmax"))(output)
     print('output', output)
 
     # Define the model that will turn
     # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
-    model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+    model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=[output])
 
     # Run training
     if not os.path.exists('s2s_attention.h5'):
         optimizer = Adam(clipnorm=1.0)
         model.compile(loss='categorical_crossentropy', optimizer=optimizer,
-                      metrics='categorical_accuracy')
+                      metrics=['categorical_accuracy'])
 
-        history = model.fit([encoder_input_data, decoder_input_data], decoder_target_data,
+        print(model.summary())
+
+        history = model.fit(x=[encoder_input_data, decoder_input_data], y=[decoder_target_data],
                   batch_size=32,
-                  epochs=5,
+                  epochs=1,
                   validation_split=0.1)
 
         plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
@@ -115,74 +128,62 @@ def main():
     else:
         model.load_weights('s2s_attention.h5')
 
-    # Define sampling models
-    encoder_model = Model(encoder_inputs, encoder_states)
-
-    decoder_state_input_h = Input(shape=(latent_dim,))
-    decoder_state_input_c = Input(shape=(latent_dim,))
-    decoder_states_inputs = [decoder_state_input_h, decoder_state_input_c]
-    decoder_outputs, state_h, state_c = decoder(
-        decoder_inputs, initial_state=decoder_states_inputs)
-    decoder_states = [state_h, state_c]
-    decoder_outputs = decoder_dense(decoder_outputs)
-    decoder_model = Model(
-        [decoder_inputs] + decoder_states_inputs,
-        [decoder_outputs] + decoder_states)
-
-    def decode_sequence(input_seq):
-        # Encode the input as state vectors.
-        states_value = encoder_model.predict(input_seq)
-
-        # Generate empty target sequence of length 1.
-        target_seq = np.zeros((1, 1, num_decoder_tokens))
-        # Populate the first character of target sequence with the start character.
-        target_seq[0, 0, 128] = 1.
-
-        # Sampling loop for a batch of sequences
-        # (to simplify, here we assume a batch of size 1).
-        stop_condition = False
-        decoded_sentence = []
-        while not stop_condition:
-            print("Target seq: {}".format(np.argmax(target_seq[0, :, :], axis=-1)))
-            output_tokens, h, c = decoder_model.predict(
-                [target_seq] + states_value)
-            print("Output seq: {} \n".format(np.argmax(output_tokens[0, :, :], axis=-1)))
-
-            # Sample a token
-            sampled_token_index = np.argmax(output_tokens[0, -1, :], axis=-1)
-            sampled_char = sampled_token_index
-            decoded_sentence.append(sampled_char)
-
-            # Exit condition: either hit max length
-            # or find stop character.
-            if (sampled_char == '\n' or
-                    len(decoded_sentence) >= 40):
-                stop_condition = True
-
-            # Update the target sequence (of length 1).
-            temp = np.zeros((1, 1, num_decoder_tokens))
-            temp[0, 0, sampled_token_index] = 1.
-            target_seq = np.concatenate((target_seq, temp), axis=1)
-            print(target_seq.shape)
-
-            # Update states
-            states_value = [h, c]
-
-        return decoded_sentence
-
+    # def decode_sequence(input_seq):
+    #     decoder_input = np.zeros(shape=(max_length, num_decoder_tokens))
+    #     decoder_input[0, 128] = 1.
+    #     for i in range(1, 100):
+    #         print(np.argmax(decoder_input, axis=-1)[:10])
+    #         output = model.predict([input_seq, np.expand_dims(decoder_input, axis=0)]).argmax(axis=-1)
+    #         output_char = output[0, i]
+    #         print("output_char: ", output_char)
+    #         decoder_input[i, output_char] = 1.
+    #     return np.argmax(decoder_input, axis=-1)
+    #
     ind = 10
     input_seq = np.expand_dims(encoder_input_data[ind], axis=0)
-    res = decode_sequence(input_seq)
+    visualize_attention(model, input_seq)
+    # res = decode_sequence(input_seq)
     # print(res)
-    # print(len(res))
-    # print(np.argmax(decoder_input_data, axis=-1)[ind][:40])
-    # print(np.argmax(decoder_target_data, axis=-1)[ind][:40])
 
-    r = 5
-    for i in range(5, 30, 2):
-        res2 = model.predict([np.expand_dims(encoder_input_data[ind][:i], axis=0),
-                             np.expand_dims(decoder_input_data[ind][:i], axis=0)])
-        print(np.argmax(res2, axis=-1))
+
+def visualize_attention(model, input_seq):
+    attention_layer = model.get_layer('attention')  # or model.layers[7]
+    attention_model = Model(inputs=model.inputs, outputs=model.outputs + [attention_layer.output])
+
+    print(attention_model)
+    print(attention_model.output_shape)
+
+    def attent_and_generate(input_seq, num_decoder_tokens):
+        decoder_input = np.zeros(shape=(40, num_decoder_tokens))
+        decoder_input[0, 128] = 1.
+
+        for i in range(1, 40):
+            output, attention = attention_model.predict([input_seq, np.expand_dims(decoder_input, axis=0)])
+            output_char = np.argmax(output[0, i], axis=-1)
+            print(output_char)
+            decoder_input[i, output_char] = 1.
+            attention_density = attention[0]
+
+        return attention_density, np.argmax(decoder_input, axis=-1)
+
+    def visualize(input_seq):
+        input_seq = input_seq[:, 6:]
+        attention_density, notes = attent_and_generate(input_seq, num_decoder_tokens=130)
+        print(attention_density.shape)
+        plt.clf()
+        print(np.argmax(input_seq, axis=-1))
+        print(attention_density[:len(notes), :len(input_seq[0]) + 1].shape)
+
+        cmap = seaborn.cm.rocket_r
+        ax = seaborn.heatmap(attention_density[:len(notes), :len(notes)],
+                             xticklabels=[w for w in np.argmax(input_seq, axis=-1)[0][:len(notes)]],
+                             yticklabels=[w for w in notes],
+                             cmap=cmap)
+
+        ax.invert_yaxis()
+        plt.show()
+
+    visualize(input_seq)
 
 
 if __name__ == "__main__":
