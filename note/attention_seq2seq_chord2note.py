@@ -17,6 +17,8 @@ def get_data():
     dp = DataPipeline()
     chords, melodies = dp.get_csv_nottingham_cleaned()
 
+    res_chords, res_melodies = [], []
+
     # get rid of leading and trailing zeros in melodies, and trim chords accordingly
     for i in range(len(melodies)):
         pre_len = len(melodies[i])
@@ -28,7 +30,6 @@ def get_data():
         temp_melody = np.trim_zeros(temp_melody, 'b')
         len_change = pre_len - len(temp_melody)
         temp_chords = temp_chords[:len(temp_chords) - len_change]
-
         #print(len(temp_chords))
 
         temp_melody = np.insert(temp_melody, 0, 128)
@@ -36,16 +37,23 @@ def get_data():
         #print(len(temp_melody))
 
         # padding to ensure the tensors have same length
-        if len(temp_melody) < 600:
-            melodies[i] = np.pad(temp_melody, (0, 600 - len(temp_melody)), mode='constant', constant_values=0)
-        if len(temp_chords) < 600:
-            chords[i] = np.pad(temp_chords, (0, 600 - len(temp_chords)), mode='constant', constant_values=0)
+        if len(temp_melody) < 602:
+            temp_melody = np.pad(temp_melody, (0, 602 - len(temp_melody)), mode='constant', constant_values=0)
+        if len(temp_chords) < 602:
+            temp_chords = np.pad(temp_chords, (0, 602 - len(temp_chords)), mode='constant', constant_values=0)
 
-    melodies_target = np.copy(melodies)
+        res_chords.append(temp_chords)
+        res_melodies.append(temp_melody)
+
+    # new chords and melodies with (1) zeros trimming and (2) add start and end char
+    res_chords, res_melodies = np.array(res_chords), np.array(res_melodies)
+
+    melodies_target = np.copy(res_melodies)
     melodies_target = melodies_target[:, 1:]
     melodies_target = np.insert(melodies_target, melodies_target.shape[-1], 0, axis=-1)
-    print(chords.shape, melodies.shape, melodies_target.shape)
-    return chords, melodies, melodies_target
+
+    print(res_chords.shape, res_chords.shape, melodies_target.shape)
+    return res_chords, res_chords, melodies_target
 
 
 def main():
