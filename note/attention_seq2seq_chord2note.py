@@ -240,18 +240,32 @@ def main():
             return losses, val_losses
 
         def train_with_generator():
-            def generate_preprocessed_data():
+            def generate_training_data():
                 while 1:
-                    for i in range(len(encoder_input_data)):
+                    for i in range(int(len(encoder_input_data) * 0.9)):
                         input_chord, decoder_input, decoder_target = encoder_input_data[i], \
                                                                      decoder_input_data[i], \
                                                                      decoder_target_data[i]
                         decoder_input = to_categorical(decoder_input, num_classes=130)
                         decoder_target = to_categorical(decoder_target, num_classes=130)
-                        yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)], np.expand_dims(decoder_target, axis=0))
+                        yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
+                               np.expand_dims(decoder_target, axis=0))
 
-            history = model.fit_generator(generate_preprocessed_data(),
-                                          steps_per_epoch=1458, epochs=3) # this means using all samples 46656, and batch size = 32
+            def generate_validation_data():
+                while 1:
+                    for i in range(int(len(encoder_input_data) * 0.9), len(encoder_input_data)):
+                        input_chord, decoder_input, decoder_target = encoder_input_data[i], \
+                                                                     decoder_input_data[i], \
+                                                                     decoder_target_data[i]
+                        decoder_input = to_categorical(decoder_input, num_classes=130)
+                        decoder_target = to_categorical(decoder_target, num_classes=130)
+                        yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
+                               np.expand_dims(decoder_target, axis=0))
+
+            # this means using all samples 46656, and batch size = 32
+            history = model.fit_generator(generate_training_data(),
+                                          validation_data=generate_validation_data(),
+                                          steps_per_epoch=1458, epochs=3)
             losses = history.history['loss']
             val_losses = history.history['val_loss']
             return losses, val_losses
