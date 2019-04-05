@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 def get_data(preload_embeddings=True):
     dp = DataPipeline()
     chords, melodies = dp.get_csv_nottingham_cleaned()
+    new_chords, new_melodies = [], []
 
     # get rid of leading and trailing zeros in melodies, and trim chords accordingly
     for i in range(len(melodies)):
@@ -23,23 +24,39 @@ def get_data(preload_embeddings=True):
         temp_melody = np.trim_zeros(melodies[i], 'f')
         len_change = pre_len - len(temp_melody)
         temp_chords = chords[i][len_change:]         # trim leading zeros
-
+        #print(temp_chords)
+        #print(temp_melody)
+        
         pre_len = len(temp_melody)
         temp_melody = np.trim_zeros(temp_melody, 'b')
         len_change = pre_len - len(temp_melody)
         temp_chords = temp_chords[:len(temp_chords) - len_change]
+        #print(temp_chords)
+        #print(temp_melody)
 
         #print(len(temp_chords))
-        temp_melody = np.insert(temp_melody, 0, 128)
-        temp_melody = np.insert(temp_melody, temp_melody.shape[-1], 129)
-        #print(len(temp_melody))
-        # padding to ensure the tensors have same length
-        if len(temp_melody) < 600:
-            melodies[i] = np.pad(temp_melody, (0, 600 - len(temp_melody)), mode='constant', constant_values=0)
-        if len(temp_chords) < 600:
-            chords[i] = np.pad(temp_chords, (0, 600 - len(temp_chords)), mode='constant', constant_values=0)
+        #temp_melody = np.insert(temp_melody, 0, 128)
+        #temp_melody = np.insert(temp_melody, temp_melody.shape[-1], 129)
 
+        # padding to ensure the tensors have same length
+        if len(temp_melody) <= 600:
+            temp_melody = np.pad(temp_melody, (0, 600 - len(temp_melody)), mode='constant', constant_values=0)
+        else:
+            print(temp_melody)
+            print(len(temp_melody))
+        if len(temp_chords) <= 600:
+            temp_chord = np.pad(temp_chords, (0, 600 - len(temp_chords)), mode='constant', constant_values=0)
+               
+        else:
+            print(temp_chords)
+            print(len(temp_chords))
+ 
+        new_chords.append(temp_chord)
+        new_melodies.append(temp_melody)
+
+    chords, melodies = np.array(new_chords), np.array(new_melodies)
     melodies_target = np.copy(melodies)
+    print(melodies_target.shape)
     melodies_target = melodies_target[:, 1:]
     melodies_target = np.insert(melodies_target, melodies_target.shape[-1], 0, axis=-1)
     print(chords.shape, melodies.shape, melodies_target.shape)
@@ -47,20 +64,31 @@ def get_data(preload_embeddings=True):
 
 
 def main():
-    preload_embeddings = True
+    preload_embeddings = False
     encoder_input_data, decoder_input_data, decoder_target_data = get_data()
+    temp = to_categorical(decoder_input_data, num_classes=130)
+    print(encoder_input_data[ind])
+    print(decoder_input_data[ind])
+    print(decoder_target_data[ind])
+
     if not preload_embeddings:
         encoder_input_data = to_categorical(encoder_input_data, num_classes=26)
+        pass
     else:
         from utils import convert_chord_indices_to_embeddings
         encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
-    decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
-    decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
+    #decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
+    #decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
+    
+    # for sparse categorical crossentropy
+    # encoder_input_data = np.expand_dims(encoder_input_data, axis=-1)
+    # decoder_input_data = np.expand_dims(decoder_input_data, axis=-1)
+    # decoder_target_data = np.expand_dims(decoder_target_data, axis=-1)
 
-    print(encoder_input_data.shape, decoder_input_data.shape, decoder_target_data.shape)
+    print("After encoding: ", encoder_input_data.shape, decoder_input_data.shape, decoder_target_data.shape)
     
     num_encoder_tokens = 26 if not preload_embeddings else 32
-    num_decoder_tokens = 130
+    num_decoder_tokens = 1
     latent_dim = 128
     max_length = None
 
@@ -109,21 +137,21 @@ def main():
 
         def train_by_adaptive_lr():
             # manual run epochs, change decay rate for optimizers each epoch
-            number_of_epochs = 10
+            number_of_epochs = 100
             prev_validation_loss = 10000
             cur_validation_loss = 10000
             losses = []
             val_losses = []
 
             # run for 1 epoch first
-            learning_rate = 1.0001
+            learning_rate = 0.01
             decay_factor = 0.9
             optimizer = Adam(clipnorm=1.0, lr=learning_rate)
-            model.compile(loss='categorical_crossentropy', optimizer=optimizer,
-                          metrics=['categorical_accuracy'])
+            model.compile(loss='sparse_categorical_crossentropy', optimizer=optimizer,
+                          metrics=['sparse_categorical_accuracy'])
             print(model.summary())  # only print on first epoch
 
-            history = model.fit(x=[encoder_input_data[:100], decoder_input_data[:100]], y=[decoder_target_data[:100]],
+            history = model.fit(x=[encoder_input_data, decoder_input_data], y=[decoder_target_data],
                                 batch_size=32,
                                 epochs=1,
                                 validation_split=0.1)
@@ -139,7 +167,7 @@ def main():
                 model.compile(loss='categorical_crossentropy', optimizer=optimizer,
                               metrics=['categorical_accuracy'])
 
-                history = model.fit(x=[encoder_input_data[:100], decoder_input_data[:100]], y=[decoder_target_data[:100]],
+                history = model.fit(x=[encoder_input_data, decoder_input_data], y=[decoder_target_data],
                           batch_size=32,
                           epochs=1,
                           validation_split=0.1)
@@ -152,16 +180,17 @@ def main():
                 print("Loss: {} Validation loss: {}\n".format(history.history['loss'][0], history.history['val_loss'][0]))
 
                 if abs(validation_delta_percentage) < 0.01:
+                    print("Decaying...")
                     learning_rate *= decay_factor
 
                 losses.append(history.history['loss'][0])
                 val_losses.append(history.history['val_loss'][0])
             return losses, val_losses
 
-        optimizer = Adam(clipnorm=1.0, lr=0.001)
-        model.compile(loss='categorical_crossentropy', optimizer=optimizer,
-                      metrics=['categorical_accuracy'])
-        print(model.summary())  # only print on first epoch
+        #optimizer = Adam(clipnorm=1.0, lr=0.001)
+        #model.compile(loss='categorical_crossentropy', optimizer=optimizer,
+        #              metrics=['categorical_accuracy'])
+        #print(model.summary())  # only print on first epoch
 
         def train_each_timestep(encoder_input_data, decoder_input_data, decoder_target_data):
             epochs = 5
@@ -218,8 +247,8 @@ def main():
             val_losses = history.history['val_loss']
             return losses, val_losses
 
-        losses, val_losses = normal_training()      # choose training method here
-
+        #losses, val_losses = normal_training()      # choose training method here
+        losses, val_losses = train_by_adaptive_lr()
         plt.plot(range(len(losses)), losses, label='train loss')
         plt.plot(range(len(val_losses)), val_losses, label='validation loss')
 

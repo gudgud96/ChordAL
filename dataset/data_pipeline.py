@@ -243,8 +243,8 @@ class DataPipeline:
         fname = "csv-nottingham"
         t1 = time.time()
         print('Loading from {}'.format("../dataset/" + fname))
-        chords_1 = np.load("../dataset/" + fname + "/chords_merged_cleaned.npy")
-        melodies_1 = np.load("../dataset/" + fname + "/melodies_merged_cleaned.npy")
+        chords_1 = np.load("../dataset/" + fname + "/chords_merged_cleaned_augmented.npy")
+        melodies_1 = np.load("../dataset/" + fname + "/melodies_merged_cleaned_augmented.npy")
 
         print(chords_1.shape)
         print(melodies_1.shape)
