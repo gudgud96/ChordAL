@@ -1,5 +1,8 @@
+import pickle
 import numpy as np
 import pretty_midi
+from mido import MidiFile
+
 
 def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
     '''Convert a Piano Roll array into a PrettyMidi object
@@ -80,4 +83,29 @@ def chord_index_to_piano_roll(chord_indices):
     return np.transpose(res, (1,0))
 
 
+def merge_melody_with_chords(melody_file, chord_file, song_file):
+    melody = MidiFile(melody_file)
+    chord = MidiFile(chord_file)
+    melody.tracks.append(chord.tracks[-1])
+
+    # change each track to different channel
+    for i in range(len(melody.tracks)):
+        track = melody.tracks[i]
+        for msg in track:
+            if hasattr(msg, 'channel'):
+                msg.channel = i
+
+    melody.save(song_file)
+
+
+def convert_chord_indices_to_embeddings(chords):
+    res = []
+    pickle_in = open("../dataset/chord_embeddings_dict.pickle", 'rb')
+    embeddings_dict = pickle.load(pickle_in)
+    embeddings_dict[0] = np.zeros((32,))
+
+    for chord in chords:
+        res.append(embeddings_dict[chord])
+
+    return np.array(res)
 
