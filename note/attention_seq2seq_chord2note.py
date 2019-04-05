@@ -16,8 +16,6 @@ import matplotlib.pyplot as plt
 def get_data(preload_embeddings=True):
     dp = DataPipeline()
     chords, melodies = dp.get_csv_nottingham_cleaned()
-    new_chords, new_melodies = [], []
-
     res_chords, res_melodies = [], []
 
     # get rid of leading and trailing zeros in melodies, and trim chords accordingly
@@ -26,17 +24,17 @@ def get_data(preload_embeddings=True):
         temp_melody = np.trim_zeros(melodies[i], 'f')
         len_change = pre_len - len(temp_melody)
         temp_chords = chords[i][len_change:]         # trim leading zeros
-        #print(temp_chords)
-        #print(temp_melody)
+        # print(temp_chords)
+        # print(temp_melody)
         
         pre_len = len(temp_melody)
         temp_melody = np.trim_zeros(temp_melody, 'b')
         len_change = pre_len - len(temp_melody)
         temp_chords = temp_chords[:len(temp_chords) - len_change]
 
-        #print(len(temp_chords))
-        #temp_melody = np.insert(temp_melody, 0, 128)
-        #temp_melody = np.insert(temp_melody, temp_melody.shape[-1], 129)
+        # print(len(temp_chords))
+        temp_melody = np.insert(temp_melody, 0, 128)
+        temp_melody = np.insert(temp_melody, temp_melody.shape[-1], 129)
 
         # padding to ensure the tensors have same length
         if len(temp_melody) < 602:
@@ -61,10 +59,6 @@ def get_data(preload_embeddings=True):
 def main():
     preload_embeddings = False
     encoder_input_data, decoder_input_data, decoder_target_data = get_data()
-    temp = to_categorical(decoder_input_data, num_classes=130)
-    print(encoder_input_data[ind])
-    print(decoder_input_data[ind])
-    print(decoder_target_data[ind])
 
     if not preload_embeddings:
         encoder_input_data = to_categorical(encoder_input_data, num_classes=26)
@@ -72,8 +66,9 @@ def main():
     else:
         from utils import convert_chord_indices_to_embeddings
         encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
-    #decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
-    #decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
+
+    # decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
+    # decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
     
     # for sparse categorical crossentropy
     # encoder_input_data = np.expand_dims(encoder_input_data, axis=-1)
@@ -83,7 +78,7 @@ def main():
     print("After encoding: ", encoder_input_data.shape, decoder_input_data.shape, decoder_target_data.shape)
     
     num_encoder_tokens = 26 if not preload_embeddings else 32
-    num_decoder_tokens = 1
+    num_decoder_tokens = 130
     latent_dim = 128
     max_length = None
 
@@ -130,6 +125,13 @@ def main():
     # Run training    
     if not os.path.exists('s2s_attention.h5'):
 
+        # optimizers and model summary
+        optimizer = Adam(clipnorm=1.0, lr=0.001)
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer,
+                      metrics=['categorical_accuracy'])
+        print(model.summary())  # only print on first epoch
+
+        # different types of training methods
         def train_by_adaptive_lr():
             # manual run epochs, change decay rate for optimizers each epoch
             number_of_epochs = 100
@@ -182,11 +184,6 @@ def main():
                 val_losses.append(history.history['val_loss'][0])
             return losses, val_losses
 
-        #optimizer = Adam(clipnorm=1.0, lr=0.001)
-        #model.compile(loss='categorical_crossentropy', optimizer=optimizer,
-        #              metrics=['categorical_accuracy'])
-        #print(model.summary())  # only print on first epoch
-
         def train_each_timestep(encoder_input_data, decoder_input_data, decoder_target_data):
             epochs = 5
             length_of_sequence = 100
@@ -238,12 +235,30 @@ def main():
                                 epochs=nb_epochs,
                                 validation_split=0.1)
 
-            losses = history.history['val_loss']
+            losses = history.history['loss']
             val_losses = history.history['val_loss']
             return losses, val_losses
 
-        #losses, val_losses = normal_training()      # choose training method here
-        losses, val_losses = train_by_adaptive_lr()
+        def train_with_generator():
+            def generate_preprocessed_data():
+                while 1:
+                    for i in range(len(encoder_input_data)):
+                        input_chord, decoder_input, decoder_target = encoder_input_data[i], \
+                                                                     decoder_input_data[i], \
+                                                                     decoder_target_data[i]
+                        decoder_input = to_categorical(decoder_input, num_classes=130)
+                        decoder_target = to_categorical(decoder_target, num_classes=130)
+                        yield ([input_chord, decoder_input], decoder_target)
+
+            history = model.fit_generator(generate_preprocessed_data(),
+                                          batch_size=32, nb_epoch=100,
+                                          validation_split=0.1)
+            losses = history.history['loss']
+            val_losses = history.history['val_loss']
+            return losses, val_losses
+
+        losses, val_losses = train_with_generator()      # choose training method here
+        # losses, val_losses = train_by_adaptive_lr()
         plt.plot(range(len(losses)), losses, label='train loss')
         plt.plot(range(len(val_losses)), val_losses, label='validation loss')
 
