@@ -248,11 +248,10 @@ def main():
                                                                      decoder_target_data[i]
                         decoder_input = to_categorical(decoder_input, num_classes=130)
                         decoder_target = to_categorical(decoder_target, num_classes=130)
-                        yield ([input_chord, decoder_input], decoder_target)
+                        yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)], np.expand_dims(decoder_target, axis=0))
 
             history = model.fit_generator(generate_preprocessed_data(),
-                                          batch_size=32, nb_epoch=100,
-                                          validation_split=0.1)
+                                          steps_per_epoch=1458, epochs=3) # this means using all samples 46656, and batch size = 32
             losses = history.history['loss']
             val_losses = history.history['val_loss']
             return losses, val_losses
