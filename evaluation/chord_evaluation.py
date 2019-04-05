@@ -83,6 +83,8 @@ def evaluate_chord_variation_coefficient(chords, result):
         if chord not in count_dict:
             count_dict[chord] = chords.count(chord)
 
+    print(chords)
+    print(count_dict.keys())
     variation_coefficient = 1 - len(list(count_dict.keys())) / len(chords)
     result["variation"] = variation_coefficient
 

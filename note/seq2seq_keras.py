@@ -1,13 +1,15 @@
+import os
 from collections import Counter
 
 import seq2seq
 from keras.optimizers import Adam
 from keras.utils import to_categorical
-from seq2seq.models import SimpleSeq2Seq
+from seq2seq.models import SimpleSeq2Seq, AttentionSeq2Seq
 
 import numpy as np
 
 from dataset.data_pipeline import DataPipeline
+from utils import convert_chord_indices_to_embeddings
 
 
 def get_data():
@@ -44,20 +46,29 @@ def get_data():
 
 def main():
     encoder_input_data, decoder_input_data, decoder_target_data = get_data()
-    encoder_input_data = to_categorical(encoder_input_data, num_classes=26)
+    encoder_input_data = np.array([convert_chord_indices_to_embeddings(c)
+                                   for c in encoder_input_data])
     decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
     decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
 
-    model = SimpleSeq2Seq(input_dim=26, hidden_dim=64, output_length=600, output_dim=130)
-    optimizer = Adam(clipnorm=1.0)
-    model.compile(loss='categorical_crossentropy', optimizer=optimizer,
-                  metrics=['categorical_accuracy'])
-    model.fit(encoder_input_data, decoder_input_data,
-              batch_size=32, epochs=2)
-    model.save_weights('s2s_simple.h5')
+    # model = AttentionSeq2Seq(input_dim=32, hidden_dim=64, output_length=600, output_dim=130)
+    model = AttentionSeq2Seq(input_dim=32, input_length=600, hidden_dim=64, output_length=600, output_dim=130)
 
-    res = model.predict(np.expand_dims(encoder_input_data[15], axis=0))
-    print(np.argmax(res, axis=-1))
+    if not os.path.exists('s2s_attention.h5'):
+        optimizer = Adam(clipnorm=1.0)
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer,
+                      metrics=['categorical_accuracy'])
+        model.fit(encoder_input_data, decoder_input_data,
+                  batch_size=32, epochs=2)
+        model.save_weights('s2s_simple.h5')
+
+        res = model.predict(np.expand_dims(encoder_input_data[15], axis=0))
+        print(np.argmax(res, axis=-1))
+
+    else:
+        model.load_weights("s2s_fariz_attention.h5")
+        output = model.predict(np.expand_dims(encoder_input_data[20], axis=0))
+        print(np.argmax(output, axis=-1))
 
 
 if __name__ == "__main__":

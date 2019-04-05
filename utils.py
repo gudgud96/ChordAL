@@ -2,6 +2,7 @@ import pickle
 import numpy as np
 import pretty_midi
 from mido import MidiFile
+from keras.utils import to_categorical
 
 
 def piano_roll_to_pretty_midi(piano_roll, fs=100, program=0):
@@ -96,6 +97,20 @@ def merge_melody_with_chords(melody_file, chord_file, song_file):
                 msg.channel = i
 
     melody.save(song_file)
+
+
+def create_song(chord_indices, note_matrix, chord_filename, note_filename, song_filename):
+    chord_pr = chord_index_to_piano_roll(chord_indices)
+    note_pr = np.transpose(to_categorical(note_matrix, num_classes=128), (1,0))
+    chord_pr[chord_pr > 0] = 90
+    note_pr[note_pr > 0] = 90
+
+    chord_midi = piano_roll_to_pretty_midi(chord_pr, fs=12)
+    note_midi = piano_roll_to_pretty_midi(note_pr, fs=12)
+    chord_midi.write(chord_filename)
+    note_midi.write(note_filename)
+
+    merge_melody_with_chords(chord_filename, note_filename, song_filename)
 
 
 def convert_chord_indices_to_embeddings(chords):

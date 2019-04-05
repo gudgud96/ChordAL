@@ -16,7 +16,6 @@
                   <option>Bidirectional</option>
                   <option>Regularized</option>
                   <option>Embedding</option>
-                  <option>Seq2seq</option>
                 </select>
             </div>
         </div>
@@ -147,7 +146,8 @@
         data = message.data; // this gives us our [command/channel, note, velocity] data.
         console.log(data);
 
-        if (data[data.length - 1] == 0) {
+        //if (data[data.length - 1] == 0) {
+        if (data[0] == 128) {
             //console.log("Stopping...");
             stopTone(data[1]);
             var duration = parseInt(Date.now() - timeDict[data[1]]) / 1000;     // in seconds

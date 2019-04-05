@@ -154,7 +154,7 @@ def main():
         model.save_weights('s2s_note.h5')
 
     else:
-        model.load_weights('s2s_note.h5')
+        model.load_weights('s2s_fariz.h5')
 
     # Define sampling models
     encoder_model = Model(encoder_inputs, encoder_states)
@@ -181,7 +181,7 @@ def main():
 
     ind = 10
     input_seq = np.expand_dims(encoder_input_data[ind], axis=0)
-    beam_width = 5
+    beam_width = 1
     res = decode(input_seq, beam_width=beam_width)
     if beam_width == 1:
         print(res)
