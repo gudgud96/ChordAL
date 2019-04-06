@@ -1,10 +1,14 @@
+import math
 import sys,os
+
+from keras.callbacks import LearningRateScheduler, EarlyStopping
+
 sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
 import os
 import time
-from keras import Input, Model
+from keras import Input, Model, callbacks
 from keras.engine.saving import load_model
-from keras.layers import CuDNNLSTM, Dense, dot, Activation, concatenate, TimeDistributed
+from keras.layers import CuDNNLSTM, Dense, dot, Activation, concatenate, TimeDistributed, K
 import numpy as np
 from keras.optimizers import Adam
 from keras.utils import to_categorical
@@ -69,19 +73,6 @@ def main():
 
     if not preload_embeddings:
         encoder_input_data = to_categorical(encoder_input_data, num_classes=26)
-        pass
-    else:
-        # from utils import convert_chord_indices_to_embeddings
-        # encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
-        pass
-
-    # decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
-    # decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
-    
-    # for sparse categorical crossentropy
-    # encoder_input_data = np.expand_dims(encoder_input_data, axis=-1)
-    # decoder_input_data = np.expand_dims(decoder_input_data, axis=-1)
-    # decoder_target_data = np.expand_dims(decoder_target_data, axis=-1)
 
     print("After encoding: ", encoder_input_data.shape, decoder_input_data.shape, decoder_target_data.shape)
     
@@ -134,7 +125,7 @@ def main():
     if not os.path.exists('s2s_attention.h5'):
 
         # optimizers and model summary
-        optimizer = Adam(clipnorm=1.0, lr=0.01)
+        optimizer = Adam(clipnorm=0.5, lr=0.05)
         model.compile(loss='categorical_crossentropy', optimizer=optimizer,
                       metrics=['categorical_accuracy'])
         print(model.summary())  # only print on first epoch
@@ -192,50 +183,6 @@ def main():
                 val_losses.append(history.history['val_loss'][0])
             return losses, val_losses
 
-        def train_each_timestep(encoder_input_data, decoder_input_data, decoder_target_data):
-            epochs = 5
-            length_of_sequence = 100
-            train_test_split = 0.1
-            losses = []
-            val_losses = []
-
-            # smaller dataset
-            encoder_input_data = encoder_input_data[:100]
-            decoder_input_data = decoder_input_data[:100]
-            decoder_target_data = decoder_target_data[:100]
-
-            num_examples = len(encoder_input_data)
-            split_point = int(num_examples * (1-train_test_split))
-
-            encoder_input_train, encoder_input_test = encoder_input_data[:split_point], \
-                                                      encoder_input_data[split_point:]
-            decoder_input_train, decoder_input_test = decoder_input_data[:split_point], \
-                                                      decoder_input_data[split_point:]
-            decoder_target_train, decoder_target_test = decoder_target_data[:split_point], \
-                                                        decoder_target_data[split_point:]
-
-            for ep in range(epochs):
-                t1 = time.time()
-                temp_loss = []
-                temp_val_loss = []
-                for length in range(1, length_of_sequence):
-                    print("Sequence index: {}".format(length))
-                    history = model.fit(x=[encoder_input_train[:, :length, :], decoder_input_train[:, :length, :]],
-                                        y=[decoder_target_train[:, :length, :]],
-                                        batch_size=32,
-                                        epochs=1)
-                    temp_loss.append(history.history["loss"][0])
-                    val_loss = model.evaluate(x=[encoder_input_test[:, :length, :], decoder_input_test[:, :length, :]],
-                                              y=[decoder_target_test[:, :length, :]])[0]
-                    temp_val_loss.append(val_loss)
-
-                losses.append(sum(temp_loss) / len(temp_loss))
-                val_losses.append(sum(temp_val_loss) / len(temp_val_loss))
-                print("Loss: {} Val loss: {}".format(sum(temp_loss) / len(temp_loss), sum(temp_val_loss) / len(temp_val_loss)))
-                print("Time used for 1 epoch: {}".format(time.time() - t1))
-
-            return losses, val_losses
-
         def normal_training():
             nb_epochs = 100
             history = model.fit(x=[encoder_input_data, decoder_input_data], y=[decoder_target_data],
@@ -248,8 +195,9 @@ def main():
             return losses, val_losses
 
         def train_with_generator(encoder_input_data):
+
+            # generate embeddings and one-hot on the fly
             from utils import convert_chord_indices_to_embeddings
-            # encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
 
             def generate_training_data():
                 while 1:
@@ -275,13 +223,72 @@ def main():
                         yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
                                np.expand_dims(decoder_target, axis=0))
 
+            # callbacks for learning rate decay and early stopping
+
+            def custom_decay(lr, cur_loss, prev_loss):
+                validation_delta_percentage = (prev_loss - cur_loss) / prev_loss
+                if validation_delta_percentage < 0.01:
+                    print("Decaying...")
+                    lr *= 0.99      # decay factor
+                return lr
+
+            class ConditionalLearningRateScheduler(LearningRateScheduler):
+                def __init__(self, schedule):
+                    LearningRateScheduler.__init__(self, schedule)
+                    self.last_loss = 10000000       # infinitely large loss
+                    self.lr = 0.01
+
+                def on_epoch_begin(self, epoch, logs={}):
+                    if not hasattr(self.model.optimizer, 'lr'):
+                        raise ValueError('Optimizer must have a "lr" attribute.')
+
+                    lr = self.lr    # we update the lr during epoch end
+
+                    # try:  # new API
+                    #     lr = self.schedule(epoch, lr, self.last_loss)
+                    # except TypeError:  # old API for backward compatibility
+                    #     lr = self.schedule(epoch)
+
+                    if not isinstance(lr, (float, np.float32, np.float64)):
+                        raise ValueError('The output of the "schedule" function '
+                                         'should be float.')
+                    K.set_value(self.model.optimizer.lr, lr)
+                    if self.verbose > 0:
+                        print('\nEpoch %05d: LearningRateScheduler setting learning '
+                              'rate to %s.' % (epoch + 1, lr))
+
+                def on_epoch_end(self, epoch, logs={}):
+                    logs = logs or {}
+                    logs['lr'] = K.get_value(self.model.optimizer.lr)
+                    cur_loss = logs.get('val_loss')
+
+                    # new lr will be determined during epoch end
+                    self.lr = self.schedule(self.lr, cur_loss, self.last_loss)
+                    self.last_loss = cur_loss
+
+            class LossHistory(callbacks.Callback):
+                def on_train_begin(self, logs={}):
+                    self.losses = []
+                    self.lr = []
+
+                def on_epoch_end(self, batch, logs={}):
+                    self.losses.append(logs.get('loss'))
+                    self.lr.append(float(K.get_value(self.model.optimizer.lr)))
+
+            loss_history = LossHistory()
+            lrate = ConditionalLearningRateScheduler(custom_decay)
+            early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, restore_best_weights=True)
+            callbacks_list = [loss_history, lrate, early_stopping]
+
             # this means using all samples 46656, and batch size = 32
             history = model.fit_generator(generate_training_data(),
                                           validation_data=generate_validation_data(),
                                           validation_steps=1,
-                                          steps_per_epoch=1458, epochs=100)
+                                          steps_per_epoch=1458, epochs=3,
+                                          callbacks=callbacks_list)
             losses = history.history['loss']
             val_losses = history.history['val_loss']
+            print(history.lr)
             return losses, val_losses
 
         losses, val_losses = train_with_generator(encoder_input_data)      # choose training method here
@@ -312,7 +319,6 @@ def main():
 
         # Save model
         model.save_weights('s2s_attention.h5')
-
 
     def decode_sequence(input_seq):
         decoder_input = np.zeros(shape=(max_length, num_decoder_tokens))
