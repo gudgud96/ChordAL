@@ -52,20 +52,28 @@ def get_data(preload_embeddings=True):
     melodies_target = melodies_target[:, 1:]
     melodies_target = np.insert(melodies_target, melodies_target.shape[-1], 0, axis=-1)
 
-    print(res_chords.shape, res_chords.shape, melodies_target.shape)
-    return res_chords, res_chords, melodies_target
+    print(res_chords.shape, res_melodies.shape, melodies_target.shape)
+    return res_chords, res_melodies, melodies_target
 
 
 def main():
-    preload_embeddings = False
+    preload_embeddings = True
     encoder_input_data, decoder_input_data, decoder_target_data = get_data()
+    print(encoder_input_data[0])
+    print()
+    print(decoder_input_data[0])
+    print()
+    print(decoder_target_data[0])
+    print()
+
 
     if not preload_embeddings:
         encoder_input_data = to_categorical(encoder_input_data, num_classes=26)
         pass
     else:
-        from utils import convert_chord_indices_to_embeddings
-        encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
+        # from utils import convert_chord_indices_to_embeddings
+        # encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
+        pass
 
     # decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
     # decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
@@ -126,7 +134,7 @@ def main():
     if not os.path.exists('s2s_attention.h5'):
 
         # optimizers and model summary
-        optimizer = Adam(clipnorm=1.0, lr=0.001)
+        optimizer = Adam(clipnorm=1.0, lr=0.01)
         model.compile(loss='categorical_crossentropy', optimizer=optimizer,
                       metrics=['categorical_accuracy'])
         print(model.summary())  # only print on first epoch
@@ -239,13 +247,17 @@ def main():
             val_losses = history.history['val_loss']
             return losses, val_losses
 
-        def train_with_generator():
+        def train_with_generator(encoder_input_data):
+            from utils import convert_chord_indices_to_embeddings
+            # encoder_input_data = np.array([convert_chord_indices_to_embeddings(chord) for chord in encoder_input_data])
+
             def generate_training_data():
                 while 1:
                     for i in range(int(len(encoder_input_data) * 0.9)):
                         input_chord, decoder_input, decoder_target = encoder_input_data[i], \
                                                                      decoder_input_data[i], \
                                                                      decoder_target_data[i]
+                        input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
                         decoder_input = to_categorical(decoder_input, num_classes=130)
                         decoder_target = to_categorical(decoder_target, num_classes=130)
                         yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
@@ -257,6 +269,7 @@ def main():
                         input_chord, decoder_input, decoder_target = encoder_input_data[i], \
                                                                      decoder_input_data[i], \
                                                                      decoder_target_data[i]
+                        input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
                         decoder_input = to_categorical(decoder_input, num_classes=130)
                         decoder_target = to_categorical(decoder_target, num_classes=130)
                         yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
@@ -265,12 +278,13 @@ def main():
             # this means using all samples 46656, and batch size = 32
             history = model.fit_generator(generate_training_data(),
                                           validation_data=generate_validation_data(),
-                                          steps_per_epoch=1458, epochs=3)
+                                          validation_steps=1,
+                                          steps_per_epoch=1458, epochs=100)
             losses = history.history['loss']
             val_losses = history.history['val_loss']
             return losses, val_losses
 
-        losses, val_losses = train_with_generator()      # choose training method here
+        losses, val_losses = train_with_generator(encoder_input_data)      # choose training method here
         # losses, val_losses = train_by_adaptive_lr()
         plt.plot(range(len(losses)), losses, label='train loss')
         plt.plot(range(len(val_losses)), val_losses, label='validation loss')
