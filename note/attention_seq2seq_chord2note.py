@@ -125,7 +125,7 @@ def main():
     if not os.path.exists('s2s_attention.h5'):
 
         # optimizers and model summary
-        optimizer = Adam(clipnorm=0.5, lr=0.05)
+        optimizer = Adam(clipnorm=0.5, lr=0.01)
         model.compile(loss='categorical_crossentropy', optimizer=optimizer,
                       metrics=['categorical_accuracy'])
         print(model.summary())  # only print on first epoch
@@ -205,8 +205,11 @@ def main():
                         input_chord, decoder_input, decoder_target = encoder_input_data[i], \
                                                                      decoder_input_data[i], \
                                                                      decoder_target_data[i]
+                        #input_chord = np.trim_zeros(input_chord, 'b')
                         input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
+                        #decoder_input = np.trim_zeros(decoder_input, 'b')
                         decoder_input = to_categorical(decoder_input, num_classes=130)
+                        #decoder_target = np.trim_zeros(decoder_target, 'b')
                         decoder_target = to_categorical(decoder_target, num_classes=130)
                         yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
                                np.expand_dims(decoder_target, axis=0))
@@ -217,8 +220,11 @@ def main():
                         input_chord, decoder_input, decoder_target = encoder_input_data[i], \
                                                                      decoder_input_data[i], \
                                                                      decoder_target_data[i]
+                        #input_chord = np.trim_zeros(input_chord, 'b')
                         input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
+                        #decoder_input = np.trim_zeros(decoder_input, 'b')
                         decoder_input = to_categorical(decoder_input, num_classes=130)
+                        #decoder_target = np.trim_zeros(decoder_target, 'b')
                         decoder_target = to_categorical(decoder_target, num_classes=130)
                         yield ([np.expand_dims(input_chord, axis=0), np.expand_dims(decoder_input, axis=0)],
                                np.expand_dims(decoder_target, axis=0))
@@ -227,8 +233,9 @@ def main():
 
             def custom_decay(lr, cur_loss, prev_loss):
                 validation_delta_percentage = (prev_loss - cur_loss) / prev_loss
+                print("Prev loss: {} Cur loss: {} Percentage: {}".format(prev_loss, cur_loss, validation_delta_percentage))
                 if validation_delta_percentage < 0.01:
-                    print("Decaying...")
+                    print("Decaying from {} to {}...".format(lr, lr * 0.99))
                     lr *= 0.99      # decay factor
                 return lr
 
@@ -277,18 +284,20 @@ def main():
 
             loss_history = LossHistory()
             lrate = ConditionalLearningRateScheduler(custom_decay)
-            early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, restore_best_weights=True)
-            callbacks_list = [loss_history, lrate, early_stopping]
+            early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, restore_best_weights=True, verbose=2)
+            callbacks_list = [loss_history, lrate]
 
             # this means using all samples 46656, and batch size = 32
             history = model.fit_generator(generate_training_data(),
                                           validation_data=generate_validation_data(),
                                           validation_steps=1,
-                                          steps_per_epoch=1458, epochs=3,
+                                          steps_per_epoch=1458, epochs=50,
                                           callbacks=callbacks_list)
             losses = history.history['loss']
             val_losses = history.history['val_loss']
-            print(history.lr)
+            print(loss_history.lr)
+            plt.plot(range(len(loss_history.lr)), loss_history.lr)
+            plt.savefig('learning_rate.png')
             return losses, val_losses
 
         losses, val_losses = train_with_generator(encoder_input_data)      # choose training method here
