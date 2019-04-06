@@ -101,7 +101,7 @@ def main():
     decoder_input_data = to_categorical(decoder_input_data, num_classes=130)
     decoder_target_data = to_categorical(decoder_target_data, num_classes=130)
 
-    print(encoder_input_embeddings.shape, decoder_input_data.shape, decoder_target_data.shape)
+    print(encoder_input_data.shape, decoder_input_data.shape, decoder_target_data.shape)
 
     num_encoder_tokens = 32
     num_decoder_tokens = 130
@@ -173,7 +173,7 @@ def main():
         [decoder_outputs] + decoder_states)
 
     # Run training using Xavier's learning rate manual decay mechanism
-    if not os.path.exists('s2s_attention.h5'):
+    if not os.path.exists('s2s_attention_augmented.h5'):
 
         def train_by_adaptive_lr():
             # manual run epochs, change decay rate for optimizers each epoch
@@ -297,32 +297,33 @@ def main():
         model.save_weights('s2s_attention.h5')
 
     else:
-        model.load_weights('s2s_attention.h5')
+        model.load_weights('s2s_attention_augmented.h5')
 
-    ind = 10
+    ind = 2
     input_seq = np.expand_dims(encoder_input_embeddings[ind], axis=0)
     print(np.argmax(decoder_target_data[ind], axis=-1))
-    visualize_attention(model, input_seq, encoder_input_data[ind])
+    visualize_attention(model, input_seq, encoder_input_embeddings[ind], decoder_input_data[ind])
     # res = decode_sequence(input_seq)
     # print(res)
 
 
-def visualize_attention(model, input_seq, encoder_input_data):
+def visualize_attention(model, input_seq, encoder_input_data, decoder_input_data):
     attention_layer = model.get_layer('attention')  # or model.layers[7]
     attention_model = Model(inputs=model.inputs, outputs=model.outputs + [attention_layer.output])
 
     print(attention_model)
     print(attention_model.output_shape)
 
-    def attent_and_generate(input_seq, num_decoder_tokens):
+    def attent_and_generate(input_seq, decoder_data_seq, num_decoder_tokens):
         length = 100
         decoder_input = np.zeros(shape=(length, num_decoder_tokens))
         decoder_input[0, 128] = 1.
         output_song = []
 
-        for i in range(length):
+        for i in range(1, length):
             output, attention = attention_model.predict([input_seq, np.expand_dims(decoder_input, axis=0)])
-            print(np.argmax(output[0], axis=-1))
+            # output, attention = attention_model.predict([input_seq, np.expand_dims(decoder_data_seq, axis=0)])
+            print("output", np.argmax(output[0], axis=-1))
             output_char = np.argmax(output[0, i], axis=-1)
             print(output_char)
             output_song.append(output_char)
@@ -333,10 +334,10 @@ def visualize_attention(model, input_seq, encoder_input_data):
         print(attention_density)
         return attention_density, output_song
 
-    def visualize(input_seq, encoder_data_seq):
+    def visualize(input_seq, encoder_data_seq, decoder_data_seq):
         print(input_seq.shape)
-        print("encoder: " , encoder_data_seq.shape)
-        attention_density, notes = attent_and_generate(input_seq, num_decoder_tokens=130)
+        print("encoder: ", encoder_data_seq.shape)
+        attention_density, notes = attent_and_generate(input_seq, decoder_data_seq, num_decoder_tokens=130)
         print(attention_density.shape)
         plt.clf()
         print(attention_density[:len(notes), :len(input_seq[0]) + 1].shape)
@@ -360,8 +361,7 @@ def visualize_attention(model, input_seq, encoder_input_data):
         cm.write("chord_attention.mid")
         merge_melody_with_chords("melody_attention.mid", "chord_attention.mid", "song_attention.mid")
 
-
-    visualize(input_seq, encoder_input_data)
+    visualize(input_seq, encoder_input_data, decoder_input_data)
 
 
 if __name__ == "__main__":
