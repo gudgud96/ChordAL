@@ -1,7 +1,7 @@
 ## ChordAL - A chord-based approach for AI music generation
 ![](logo-small.PNG)
 
-#### Introduction
+### Introduction
 It seems to be very intuitive for human composers to write songs based on chord progressions, 
 especially in Western music genres like pop and jazz music. However, not much work is done on exploring
 how we could generate melodies based on given chord progressions. 
@@ -9,7 +9,7 @@ how we could generate melodies based on given chord progressions.
 Here we propose **ChordAL**, which is a chord-based learning system for music composition using deep learning.
 
 
-#### Architecture
+### Architecture
 ![](architecture.PNG)
 
 The generation process is divided into 3 parts: *chord generation*, *chord-to-note generation*, and *music styling*.
@@ -22,7 +22,7 @@ and [CSV leadsheet database](http://marg.snu.ac.kr/chord_generation/) published 
 To the best of our knowledge, we note that such parallel datasets are still scarce to find. We would like to call for recommendations 
 / annotations of such parallel datasets for training better models in future.
 
-#### File Structure
+### File Structure
 Each folder is structured to be a component of ChordAL's system:
  - `chord`: chord generation
  - `dataset`: data-loading related functions
@@ -31,7 +31,7 @@ Each folder is structured to be a component of ChordAL's system:
  - `models`: collection of models used / experimented in ChordAL
  - `visualizer`: a Flask web application for demonstration of ChordAL's features
 
-#### Try ChordAL yourself!
+### Try ChordAL yourself!
 ```bibtex
 pip install -r requirements.txt
 cd visualizer
@@ -39,5 +39,5 @@ python3 main.py
 ``` 
 You can then try it on your browser at localhost:5000. Enjoy and hope you like it!
 
-#### References and Contribution
+### References and Contribution
 To be added
