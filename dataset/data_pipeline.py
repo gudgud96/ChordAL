@@ -16,8 +16,8 @@ from tqdm import tqdm
 
 from chord.chord_extractor_generic import ChordExtractor
 from chord.chord_generator import ChordGenerator, CHORD_DICT
-from rhythm.rhythm_extractor import RhythmExtractor
-from rhythm.rhythm_generator import RhythmGenerator
+# from rhythm.rhythm_extractor import RhythmExtractor
+# from rhythm.rhythm_generator import RhythmGenerator
 from music21 import *
 import numpy as np
 
@@ -351,8 +351,6 @@ class DataPipeline:
                 new_chord.append(value)
 
         return np.array(new_chord)
-
-
 
     def __merge_nottingham_piano_roll(self):
         chords = np.load('chords-1.npy')
