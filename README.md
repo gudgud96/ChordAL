@@ -1,5 +1,5 @@
 ## ChordAL - A chord-based approach for AI music generation
-![](logo-small.PNG)
+![](logo-small.png)
 
 ### Introduction
 It seems to be very intuitive for human composers to write songs based on chord progressions, 
@@ -10,11 +10,11 @@ Here we propose **ChordAL**, which is a chord-based learning system for music co
 
 
 ### Architecture
-![](architecture.PNG)
+![](architecture.png)
 
 The generation process is divided into 3 parts: *chord generation*, *chord-to-note generation*, and *music styling*.
 
-We see chord-to-note generation tasks to be similar with ***neural machine translation*** tasks, which
+We see chord-to-note generation tasks to be similar with **neural machine translation** tasks, which
 requires a large amount of *parallel datasets* between chords and notes. Hence, we make use of [McGill Chord Dataset](http://ddmal.music.mcgill.ca/research/salami/annotations), 
 [Nottingham dataset](https://github.com/jukedeck/nottingham-dataset) cleaned by Jukedeck, 
 and [CSV leadsheet database](http://marg.snu.ac.kr/chord_generation/) published by MARG Seoul, Korea.
