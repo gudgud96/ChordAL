@@ -8,7 +8,7 @@ import os
 import time
 from keras import Input, Model, callbacks
 from keras.engine.saving import load_model
-from keras.layers import CuDNNLSTM, Dense, dot, Activation, concatenate, TimeDistributed, K
+from keras.layers import CuDNNLSTM, Dense, dot, Activation, concatenate, TimeDistributed, K, warnings
 import numpy as np
 from keras.optimizers import Adam
 from keras.utils import to_categorical
@@ -243,7 +243,7 @@ def main():
                 def __init__(self, schedule):
                     LearningRateScheduler.__init__(self, schedule)
                     self.last_loss = 10000000       # infinitely large loss
-                    self.lr = 0.01
+                    self.lr = 0.005
 
                 def on_epoch_begin(self, epoch, logs={}):
                     if not hasattr(self.model.optimizer, 'lr'):
@@ -282,16 +282,51 @@ def main():
                     self.losses.append(logs.get('loss'))
                     self.lr.append(float(K.get_value(self.model.optimizer.lr)))
 
+            class MonitorLossEarlyStop(callbacks.Callback):
+                def __init__(self):
+                    self.monitor = 'loss', 'val_loss'
+                    self.best_weights = None
+
+                def on_epoch_end(self, epoch, logs={}):
+                    current_loss = self.get_monitor_value(logs)
+                    print("current: {}".format(current_loss))
+                    if current_loss is None:
+                        return
+
+                    delta = 0.0001
+                    if current_loss <= delta:    # stop when loss suddenly drop to 0
+                        print('Restoring model weights from the end of '
+                              'the best epoch')
+                        self.model.stop_training = True
+                        self.model.set_weights(self.best_weights)
+
+                    else:
+                        self.best_weights = self.model.get_weights()    # save the weights for this epoch
+
+                def on_train_end(self, logs=None):
+                    if self.model.stop_training:
+                        print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
+
+                def get_monitor_value(self, logs):
+                    monitor_value = logs.get(self.monitor)
+                    if monitor_value is None:
+                        warnings.warn(
+                            'Early stopping conditioned on metric `%s` '
+                            'which is not available. Available metrics are: %s' %
+                            (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+                        )
+                    return monitor_value
+
             loss_history = LossHistory()
             lrate = ConditionalLearningRateScheduler(custom_decay)
-            early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=5, restore_best_weights=True, verbose=2)
-            callbacks_list = [loss_history, lrate]
+            monitor_loss_early_stopping = MonitorLossEarlyStop()
+            callbacks_list = [loss_history, lrate, monitor_loss_early_stopping]
 
             # this means using all samples 46656, and batch size = 32
             history = model.fit_generator(generate_training_data(),
                                           validation_data=generate_validation_data(),
                                           validation_steps=1,
-                                          steps_per_epoch=1458, epochs=50,
+                                          steps_per_epoch=1458, epochs=3,
                                           callbacks=callbacks_list)
             losses = history.history['loss']
             val_losses = history.history['val_loss']
