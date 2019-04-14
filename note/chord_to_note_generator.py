@@ -55,12 +55,12 @@ class ChordToNoteGenerator:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
                 model.load_weights("bidirectional_embedding_preload.h5")
-                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model = mb.train_with_generator(model, epochs, loss="categorical_crossentropy")
                 model.save_weights("bidirectional_embedding_preload.h5")
             else:
                 mb = ModelBuilder(self.X_train, self.Y_train, self.X_test, self.Y_test)
                 model = mb.build_bidirectional_rnn_model(input_dim=self.X_train.shape[1:])
-                model = mb.train_model(model, epochs, loss="categorical_crossentropy")
+                model = mb.train_with_generator(model, epochs, loss="categorical_crossentropy")
                 model.save_weights("bidirectional_embedding_preload.h5")
 
         elif model_name == 'bidirectional': # no embedding
@@ -208,8 +208,8 @@ class ChordToNoteGenerator:
             chords, melodies = np.transpose(chords, (0, 2, 1)), np.transpose(melodies, (0, 2, 1))
         elif model == 'basic_rnn_embed':
             # melodies = np.transpose(melodies, (0, 2, 1))
-            melodies = to_categorical(melodies, num_classes=128)
-
+            # melodies = to_categorical(melodies, num_classes=128)
+            pass
         return chords, melodies
 
     def __prepare_data_tt_splited(self, tt_split=0.9, src='nottingham', model_name='basic_rnn'):
@@ -227,23 +227,4 @@ class ChordToNoteGenerator:
 
 if __name__ == "__main__":
     generator = ChordToNoteGenerator()
-    generator.train_chord_to_melody_model(epochs=250, model_name="bidirectional")
-    #ind = 10
-
-    #chords = np.transpose(generator.X_test[ind], (1,0))
-    #from utils import piano_roll_to_pretty_midi
-
-    #chords_temp = np.copy(chords)
-    #chords_temp[chords_temp > 0] = 90
-    #c_midi = piano_roll_to_pretty_midi(chords_temp, fs=12)
-    #c_midi.write('chord.mid')
-
-    #generator.generate_notes_from_chord(chords=chords)
-    #from generator.song_generator import merge_melody_with_chords
-    #merge_melody_with_chords('melody.mid', 'chord.mid', 'song.mid')
-
-    #actual = np.transpose(generator.Y_test[ind], (1, 0))
-    #actual[actual > 0] = 90
-    #a_midi = piano_roll_to_pretty_midi(actual, fs=12)
-    #a_midi.write('actual.mid')
-    #merge_melody_with_chords('actual.mid', 'chord.mid', 'song-actual.mid')
+    generator.train_chord_to_melody_model(epochs=3, model_name="bidirectional_embedding")

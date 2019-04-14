@@ -14,6 +14,8 @@ from keras.regularizers import l1, l2
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np
+from keras.utils import to_categorical
 
 from chord.chord_generator import NUM_CLASSES
 from models.keras_attention_wrapper import AttentionDecoder
@@ -257,9 +259,69 @@ class ModelBuilder:
         plt.plot(range(len(history.history['val_loss'])), history.history['val_loss'], label='validation loss')
 
         plt.savefig('loss_train_test.png')
-        open('train_test_accuracy.txt', 'w+').write('Train acc: {} Test acc: {} Train_loss: {} Test_loss: {}'.format(scores[1], scores_2[1], scores[0], scores_2[0]))
+        open('train_test_accuracy.txt', 'w+').write(
+            'Train acc: {} Test acc: {} Train_loss: {} Test_loss: {}'.format(scores[1],
+                                                                             scores_2[1],
+                                                                             scores[0],
+                                                                             scores_2[0]))
 
         return model
+
+    def train_with_generator(self, model, epochs, loss='mean_squared_error'):
+
+        # generate embeddings and one-hot on the fly
+        from utils import convert_chord_indices_to_embeddings
+
+        def generate_training_data():
+            while 1:
+                for i in range(int(len(self.X_train) * 0.9), len(self.X_train)):
+                    input_chord, output_note = self.X_test[i], self.Y_test[i]
+                    input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
+                    output_note = to_categorical(output_note, num_classes=128)
+                    yield (np.expand_dims(input_chord, axis=0),
+                           np.expand_dims(output_note, axis=0))
+
+        def generate_validation_data():
+            while 1:
+                for i in range(int(len(self.X_train) * 0.9), len(self.X_train)):
+                    input_chord, output_note = self.X_test[i], self.Y_test[i]
+                    input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
+                    output_note = to_categorical(output_note, num_classes=128)
+                    yield (np.expand_dims(input_chord, axis=0),
+                           np.expand_dims(output_note, axis=0))
+
+        print("Train with generator...")
+        print(model.summary())
+        loss_metrics_dict = {
+            "mean_squared_error": ['accuracy'],
+            "binary_crossentropy": ['binary_accuracy'],
+            "categorical_crossentropy": ['categorical_accuracy']
+        }
+        optimizer = Adam(clipnorm=1.0)
+        model.compile(loss=loss, optimizer=optimizer, metrics=loss_metrics_dict[loss])
+        history = model.fit_generator(generate_training_data(),
+                                      validation_data=generate_validation_data(),
+                                      validation_steps=1,
+                                      steps_per_epoch=1458, epochs=epochs)
+        scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
+        print('Train loss:', scores[0])
+        print('Train accuracy:', scores[1])
+        scores_2 = model.evaluate(self.X_test, self.Y_test, verbose=True)
+        print('Test loss:', scores_2[0])
+        print('Test accuracy:', scores_2[1])
+
+        plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
+        plt.plot(range(len(history.history['val_loss'])), history.history['val_loss'], label='validation loss')
+
+        plt.savefig('loss_train_test.png')
+        open('train_test_accuracy.txt', 'w+').write(
+            'Train acc: {} Test acc: {} Train_loss: {} Test_loss: {}'.format(scores[1],
+                                                                             scores_2[1],
+                                                                             scores[0],
+                                                                             scores_2[0]))
+
+        return model
+
 
 def sampling(args):
     """
