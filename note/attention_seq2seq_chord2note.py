@@ -299,7 +299,7 @@ def main():
     else:
         model.load_weights('s2s_attention_augmented.h5')
 
-    ind = 3
+    ind = 12
     input_seq = np.expand_dims(encoder_input_embeddings[ind], axis=0)
     print(np.argmax(decoder_target_data[ind], axis=-1))
     visualize_attention(model, input_seq, encoder_input_data[ind], decoder_input_data[ind])

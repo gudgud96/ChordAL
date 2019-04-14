@@ -1,5 +1,5 @@
 <h3>Song Generation by Chord</h3>
-<p>Input your preferred chord progression, number of bars and style. A 16-bar music with melody and accompaniment will be generated.</p>
+<p>Input your preferred chord progression, number of bars and style. A 16-bar  or 32-bar music with melody and accompaniment will be generated.</p>
 <div>
     <form action="/play" method="post">
         <div class="form-group row">
@@ -9,28 +9,28 @@
             </div>
         </div>
         <div class="form-group row">
-            <label class="col-sm-2 col-form-label">Choose model:</label>
+            <label class="col-sm-2 col-form-label">Choose song length:</label>
             <div class="col-sm-6">
-                <select class="form-control" name="model_name">
-                  <option>Bidirectional</option>
-                  <option>Regularized</option>
-                  <option>Embedding</option>
+                <select class="form-control" name="bar_number" id="bar_number">
+                  <option>16-bar</option>
+                  <option>32-bar</option>
                 </select>
             </div>
         </div>
         <div class="form-group row">
             <label class="col-sm-2 col-form-label">Style</label>
             <div class="col-sm-6">
-                <select class="form-control" name="style">
-                  <option>Piano</option>
-                  <option>Techno</option>
-                  <option>Strings</option>
-                  <option>Organ</option>
-                  <option>Church</option>
+                <select class="form-control" name="style" id="style">
+                    <option value="Strings">Strings</option>
+                    <option value="Organ">Organ</option>
+                    <option value="Church">Church</option>
+                    <option value="Techno">Techno</option>
+                    <option value="Brass">Brass</option>
+                    <option value="Flute">Flute</option>
                 </select>
             </div>
         </div>
-        <button name="forwardBtn" type="submit" class="btn btn-primary" onclick="$('.progress').removeClass('hidden');$('.progress-bar').animate({width: '80%' }, 2500);">Generate</button>
+        <button name="forwardBtn" type="submit" class="btn btn-primary" onclick="$('.progress').removeClass('hidden');$('.progress-bar').animate({width: '90%' }, 6000);">Generate</button>
         <br/>
         <br/>
         <div class="col-xs-12 col-sm-12 progress-container">
@@ -40,9 +40,22 @@
     </div>
     </form>
 
-<!--{% with messages = get_flashed_messages() %}-->
-    <!--{% for m in messages %}-->
-        <!--<p>{{ m }}</p>-->
-    <!--{% endfor %}-->
-<!--{% endwith %}-->
 </div>
+<script type='text/javascript'>
+    console.log("test test");
+    var barnum = document.getElementById("bar_number");
+
+    barnum.addEventListener("change", function() {
+        if(barnum.value == "32-bar")
+        {
+            console.log($('#style option[value="Techno"]'));
+            $('#style option[value="Techno"]').hide();
+        }
+        else if(barnum.value == "16-bar")
+        {
+            console.log($('#style option[value=4]'));
+            $('#style option[value="Techno"]').show();
+        }
+    });
+
+</script>

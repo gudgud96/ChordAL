@@ -5,18 +5,21 @@ Purpose:    A complete song generator.
 '''
 import os
 import pickle
+import random
 from collections import Counter
+import matplotlib.pyplot as plt
 
 from keras.utils import to_categorical
 
 from chord.chord_generator import ChordGenerator, CHORD_SEQUENCE_FILE, CHORD_SEQUENCE_FILE_SHIFTED
 from note.chord_to_note_generator import ChordToNoteGenerator
-from note2chord.note_to_chord_generator import NoteToChordGenerator
+# from note2chord.note_to_chord_generator import NoteToChordGenerator
 from dataset.data_pipeline import MAX_NUM_OF_BARS, FS, DataPipeline
 import pretty_midi
 import numpy as np
 from utils import piano_roll_to_pretty_midi, merge_melody_with_chords
 from mido import MidiFile
+from music21 import scale
 
 MODEL_NAME = "bidem"
 MODELS_TO_NOTE = ["attention", "bidem", "bidem_preload", "bidem_preload", "bidem_regularized"]
@@ -28,6 +31,54 @@ def generate_chords(chords, bar_number):
     if not chords:
         chords = ['D:maj', 'A:maj', 'B:min', 'F#:min']
     chords = chord_generator.generate_chords(chords, num_of_chords=bar_number)
+    chords = chord_tuning(chords)
+    return chords
+
+
+def chord_tuning(chords):
+    tonic_chord = chords[0]     # assume first chord to be in tonic
+    tonic_key, tonic_tonality = tonic_chord.split(":")
+    sc = scale.MajorScale(tonic_key) if tonic_tonality == "maj" \
+        else scale.MinorScale(tonic_key)
+    sc = [p.name for p in sc.getPitches(tonic_key + '2', tonic_key + '3')]
+    # tune the ending part of the chord sequence
+    ending_key, ending_tonality = chords[-1].split(':')
+    leading_key, leading_tonality = chords[-2].split(':')
+
+    if tonic_tonality == "maj":
+        relative_minor_key = sc[5]
+        dominant_key = sc[4]
+        if ending_key == tonic_key:
+            pass               # no changes if ending on tonic
+        elif ending_key == relative_minor_key:
+            if leading_key != dominant_key:
+                chords[-2] = dominant_key + ":maj"
+        else:
+            chords[-2] = dominant_key + ":maj"
+            if random.uniform(0, 1) > 0.8:
+                chords[-1] = tonic_key + ":maj"
+            else:
+                chords[-1] = relative_minor_key + ":min"
+
+    else:
+        relative_major_key = sc[2]
+        major_dominant_key = sc[-2]
+        minor_dominant_key = sc[4]
+
+        if ending_key == tonic_key:
+            pass
+        elif ending_key == relative_major_key:
+            if leading_key != major_dominant_key:
+                chords[-2] = major_dominant_key + ":maj"
+        else:
+
+            if random.uniform(0, 1) > 0.8:
+                chords[-2] = major_dominant_key + ":maj"
+                chords[-1] = relative_major_key + ":maj"
+            else:
+                chords[-2] = minor_dominant_key + ":maj"
+                chords[-1] = tonic_key + ":min"
+
     return chords
 
 
@@ -83,77 +134,100 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     temp_melody_midi = pretty_midi.PrettyMIDI('melody.mid')
     melody_pr = temp_melody_midi.get_piano_roll(fs=12)
     melody_pr = melody_pr[:, :pr_length]
-    print(melody_pr.shape)
+
+    # 5. Melody tuning
+    melody_pr = melody_tuning(melody_pr)
     melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
     melody_midi.write('melody.mid')
 
     os.remove('chords_to_midi.mid')
 
-    # 5. Post processing - merging, changing instruments, etc.
-    song_styling('melody.mid', 'chords.mid', 'song.mid', melody_instrument=melody_instrument,
-                         chord_instrument=chord_instrument, style=style, chords=chords)
-    print('Song generation done.')
-
-
-def generate_song_given_notes(notes, bar_number=16, melody_instrument=0, chord_instrument=0,
-                              style='piano', model_name="bidem"):
-    notes = __resize_note_array(notes)      # assume we have 48 notes here always
-    ntcg = NoteToChordGenerator()
-    chords_generated = ntcg.generate_chords_from_note(notes, is_fast_load=True)
-    chords_generated = np.trim_zeros(chords_generated, 'b')[:48]          # remove trailing zeros
-    reduced_chords = __reduce_chord_array(chords_generated)
-
-    cg = ChordGenerator()
-    chord_texts = []
-    for c in reduced_chords:
-        chord_texts.append(cg.id_to_chord(c))
-
-    chords = generate_chords(chord_texts, bar_number=bar_number)
-
-    # TODO: chords grafting
-
-    # 2. Convert chords to piano roll
-    pr_save, pr, pr_length = convert_chords_to_piano_roll(chords)
-
-    # 2.5 If model is bidirectional with embedding, we need to convert pr to indices first
-    if model_name in MODELS_TO_NOTE:
-        dp = DataPipeline()
-        # print(pr_save.shape)
-        chord_indices = dp.convert_chord_to_indices(pr_save)
-        # print(chord_indices.shape)
-
-    # 3. Generate notes given chords
-    chord_to_note_generator = ChordToNoteGenerator()
-    chord_to_note_generator.load_model(model_name)
-
-    if model_name in MODELS_TO_NOTE:
-        melody = chord_to_note_generator.generate_notes_from_chord(chord_indices, is_bidem=True,
-                                                                   is_return=True)
-    else:
-        melody = chord_to_note_generator.generate_notes_from_chord(pr, is_bidem=False)
-
-    melody = np.argmax(melody, axis=0)
-
-    # 4. Grafting
-    if os.path.isfile('melody.mid'):
-        os.remove('melody.mid')
-    for i in range(len(notes)):
-        melody[i] = notes[i]
-    melody_pr = np.transpose(to_categorical(melody, num_classes=128), (1,0))
-    melody_pr[melody_pr > 0] = 90
-    melody_pr = melody_pr[:, :pr_length]
-    print(melody_pr.shape)
-    melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
-    melody_midi.write('melody.mid')
-
-    os.remove('chords_to_midi.mid')
-
-    # 5. Post processing - merging, changing instruments, etc.
+    # 6. Post processing - merging, changing instruments, etc.
     song_styling('melody.mid', 'chords.mid', 'song.mid', melody_instrument=melody_instrument,
                  chord_instrument=chord_instrument, style=style, chords=chords)
-    # song_styling('melody-actual.mid', 'chords.mid', 'song-actual.mid', melody_instrument=melody_instrument,
-    #              chord_instrument=chord_instrument, style=style, chords=chords)
     print('Song generation done.')
+
+
+def melody_tuning(melody):
+    if melody.shape[0] == 128:
+        melody = np.argmax(melody, axis=0)      # normalize to melody indices
+
+    def count_lengths(seq):
+        lengths = []
+        count = 1
+        last_index = 0
+        for i in range(1, len(seq)):
+            if seq[i] != seq[last_index]:
+                lengths.append(count)
+                last_index = i
+                count = 1
+            else:
+                count += 1
+        lengths.append(count)
+        return lengths
+
+    # determine if most of the notes last for odd or even lengths
+    lengths = [k % 2 for k in count_lengths(melody)]
+    is_odd = max(lengths, key=lengths.count)
+
+    # smoothing using sliding window
+    window_size = 3
+    for i in range(len(melody) - window_size):
+        left, center, right = melody[i : i + window_size]
+
+        if i == 0:  # tuning needed at the start of the melody
+            if left != center and center == right:
+                melody[i] = center
+
+        if left == right and center != right:
+            melody[i + 1] = left
+
+        elif left != center and center != right:
+            left_len, j = 1, i - 1
+            while j >= 0 and melody[j] == melody[i]:
+                left_len += 1
+                j -= 1
+            right_len, j = 1, i + 3
+            while j < len(melody) and melody[j] == melody[i + 2]:
+                right_len += 1
+                j += 1
+
+            if left_len % 2 == is_odd:
+                if right_len % 2 != is_odd:
+                    melody[i + 1] = left
+                else:
+                    melody[i + 1] = left if left_len < right_len else right
+            else:
+                if right_len % 2 == is_odd:
+                    melody[i + 1] = right
+                else:
+                    melody[i + 1] = left if left_len < right_len else right
+
+    # only stick to 1 note if the note is a chord note in the last bar
+    last_bar = list(melody[-20:])
+    sustaining_note = max(last_bar, key=list(last_bar).count)
+    sustaining_index = last_bar.index(sustaining_note)
+    for i in range(sustaining_index, len(last_bar)):
+        last_bar[i] = sustaining_note
+    j = 0
+    for i in range(len(melody) - 20, len(melody)):
+        melody[i] = last_bar[j]
+        j += 1
+
+    tuned_melody = np.transpose(to_categorical(melody, num_classes=128), (1,0))
+    tuned_melody[tuned_melody > 0] = 90
+    return tuned_melody
+
+
+def melody_tuning_test():
+    melody_pr = pretty_midi.PrettyMIDI('melody.mid').get_piano_roll(fs=12)
+    plt.imsave("before-tuning.png", melody_pr)
+    tuned_melody_pr = melody_tuning(melody_pr)
+    plt.imsave("after-tuning.png", tuned_melody_pr)
+
+    tuned_melody_pr[tuned_melody_pr > 0] = 90
+    mid = piano_roll_to_pretty_midi(tuned_melody_pr, fs=12)
+    mid.write("after_tuning.mid")
 
 
 def __reduce_chord_array(chord_array):
@@ -182,7 +256,7 @@ def change_midi_instrument(file_name, target_instrument):
             if hasattr(msg, 'program'):  # instrument attribute
                 msg.program = target_instrument
     mid.save(file_name)
-    print('Instrument changed to id - {}'.format(target_instrument))
+    # print('Instrument changed to id - {}'.format(target_instrument))
 
 
 def song_styling(melody_file, chord_file, song_file, melody_instrument=0, chord_instrument=0,
@@ -195,7 +269,7 @@ def song_styling(melody_file, chord_file, song_file, melody_instrument=0, chord_
 
     elif style == 'techno':
         print('Chosen style: Techno')
-        change_midi_instrument(melody_file, 80)
+        change_midi_instrument(melody_file, 94)
         change_midi_instrument(chord_file, 93)
         merge_melody_with_chords(melody_file, chord_file, song_file)
         add_drum_beats(song_file)
@@ -217,6 +291,18 @@ def song_styling(melody_file, chord_file, song_file, melody_instrument=0, chord_
         print('Chosen style: Church')
         change_midi_instrument(melody_file, 49)
         change_midi_instrument(chord_file, 52)
+        merge_melody_with_chords(melody_file, chord_file, song_file)
+
+    elif style == 'brass':
+        print('Chosen style: Brass')
+        change_midi_instrument(melody_file, 60)
+        change_midi_instrument(chord_file, 58)
+        merge_melody_with_chords(melody_file, chord_file, song_file)
+
+    elif style == 'flute':
+        print('Chosen style: Flute')
+        change_midi_instrument(melody_file, 73)
+        change_midi_instrument(chord_file, 89)
         merge_melody_with_chords(melody_file, chord_file, song_file)
 
     else:
@@ -266,43 +352,6 @@ def add_bass(song_file, chords, bass_instrument=34):
     mid.save(song_file)
     os.remove('bass_line.mid')
 
-# Techno instruments - 80 or 81, 90 or  93
-# Strings instruments - 40, 48 / 52, 48
-
 
 if __name__ == "__main__":
-    res = generate_song_given_notes([60, 60, 60, 62, 62, 62, 64, 64, 64, 64, 65, 65,
-                                     65, 65, 67, 67, 67, 67, 67, 67])
-
-    print(res)
-
-    # for i in range(10):
-    # song_post_processing('melody.mid', 'chords.mid', 'song.mid', style='techno')
-    # generate_song(bar_number=16, style='church', chords=['D:maj', 'A:maj'])
-    #
-    # melody_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/melody.mid')
-    # chord_mid = pretty_midi.PrettyMIDI('../visualizer/app/static/2019-01-09-22-31-17/chords.mid')
-    # melody_pr = melody_mid.get_piano_roll(fs=12)
-    # chord_pr = chord_mid.get_piano_roll(fs=12)
-    #
-    # pr_length = 384
-    # melody_pr = melody_pr[:, :pr_length]
-    # chord_pr = chord_pr[:, :pr_length]
-    # print(melody_pr.shape)
-    # melody_midi = piano_roll_to_pretty_midi(melody_pr, fs=12)
-    # chord_midi = piano_roll_to_pretty_midi(chord_pr, fs=12)
-    # melody_midi.write('melody.mid')
-    # chord_midi.write('chords.mid')
-    # melody_midi = MidiFile('melody.mid')
-    # chord_midi = MidiFile('chords.mid')
-    # melody_midi.tracks.append(chord_midi.tracks[-1])
-    # melody_midi.save('song.mid')
-    #
-    # song_styling('melody.mid', 'chords.mid', 'song.mid', style="techno")
-
-
-
-
-    # os.rename('melody.mid', 'melody-{}.mid'.format(i))
-    # os.rename('chords.mid', 'chords-{}.mid'.format(i))
-    # os.rename('song.mid', 'song-{}.mid'.format(i))
+    melody_tuning_test()

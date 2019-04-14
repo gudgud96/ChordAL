@@ -85,7 +85,6 @@ class ChordGenerator:
                 chords_in_tf.append([cur_chords[j : j + TIME_FRAME + 1]])
 
         chords_in_tf = np.squeeze(np.asarray(chords_in_tf))
-        print("chords_in_tf.shape : {}".format(chords_in_tf.shape))
         X, Y = chords_in_tf[:, :-1], chords_in_tf[:, -1]
         X_oh, Y_oh = to_categorical(X, num_classes=NUM_CLASSES), to_categorical(Y, num_classes=NUM_CLASSES)
 
@@ -238,7 +237,6 @@ class ChordGenerator:
                 new_value_lst = []
                 for i in range(len(value_lst)):
                     new_value_lst.append(DECODE_DICT[value_lst[i]] + str(octave_lst[i]))
-                print(new_value_lst)
                 d = duration.Duration(chord_duration)    # whole note length
                 temp_chord = chord.Chord(new_value_lst, duration=d)
                 s.append(temp_chord)
@@ -249,7 +247,6 @@ class ChordGenerator:
                 s.append(bass_note)
 
         fp = name
-        print("lengths", len(s), len(chords))
         s.write('midi', fp=fp)
         return fp
 
@@ -294,7 +291,6 @@ class ChordGenerator:
             if ch != '-':
                 first_chord = ch
                 break
-        print(first_chord)
         first_key, first_tonality = first_chord.split(':')
         first_key_index = CHORD_DICT[first_key]
         key_of_c = 1
@@ -320,7 +316,6 @@ class ChordGenerator:
         first_key, first_tonality = first_chord.split(':')
         first_key_index = CHORD_DICT[first_key]
         key_of_original = CHORD_DICT[first_key_original]
-        print(first_key, first_key_original, first_key_index, key_of_original)
         diff = key_of_original - first_key_index
         if diff > 0:
             for i in range(len(chords)):

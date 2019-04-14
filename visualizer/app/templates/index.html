@@ -22,23 +22,11 @@
       <h4>Chord-Based Learning Framework for Symbolic Music Generation using Neural Networks</h4>
       <ul class="nav nav-tabs">
         <li class="active"><a data-toggle="tab" href="#home">Generation by Chord</a></li>
-        <li><a data-toggle="tab" href="#note">Generation by Note</a></li>
-        <li><a data-toggle="tab" href="#turing">Musical Turing Test</a></li>
       </ul>
 
       <div class="tab-content">
         <div id="home" class="tab-pane fade in active">
           {% include 'generation.html' %}
-        </div>
-        <div id="note" class="tab-pane fade">
-          {% include 'generation_by_note.html' %}
-        </div>
-        <div id="turing" class="tab-pane fade">
-          <h3>Musical Turing Test</h3>
-          <p>Quality test to check if music generated is as good as human composition.</p>
-          <p>5 songs are randomly generated as below. Please indicate if you think it is composed by human or AI.</p>
-          <br/>
-          {% include 'turing.html' %}
         </div>
       </div>
     </div>
