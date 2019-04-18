@@ -1,0 +1,427 @@
+@charset "utf-8";
+/* CSS Document */
+
+/******************************
+
+[Table of Contents]
+
+1. 1600px
+2. 1440px
+3. 1280px
+4. 1199px
+5. 1024px
+6. 991px
+7. 959px
+8. 880px
+9. 768px
+10. 767px
+11. 539px
+12. 479px
+13. 400px
+
+******************************/
+
+/************
+1. 1600px
+************/
+
+@media only screen and (max-width: 1600px)
+{
+	
+}
+
+/************
+2. 1440px
+************/
+
+@media only screen and (max-width: 1440px)
+{
+	
+}
+
+/************
+3. 1380px
+************/
+
+@media only screen and (max-width: 1380px)
+{
+	
+}
+
+/************
+3. 1280px
+************/
+
+@media only screen and (max-width: 1280px)
+{
+	
+}
+
+/************
+4. 1199px
+************/
+
+@media only screen and (max-width: 1199px)
+{
+	.main_nav ul li:not(:last-of-type)
+	{
+		margin-right: 40px;
+	}
+	.artist_info
+	{
+		padding-left: 0;
+	}
+	.artist_image
+	{
+		width: 100%;
+		padding-right: 0;
+		left: auto;
+	}
+	.artist_content
+	{
+		width: 100%;
+	}
+	.single_player_container
+	{
+		padding-left: 0;
+	}
+	.single_player
+	{
+		padding-right: 23px;
+	}
+	.player_progress_box
+	{
+		width: calc(100% - 135px);
+	}
+	.jp-volume-controls
+	{
+		width: 135px;
+		padding-left: 20px;
+	}
+	.mute_button
+	{
+		left: 20px;
+	}
+	.nl_col
+	{
+		margin-top: 40px;
+	}
+	.newsletter_form_container
+	{
+		padding-left: 0;
+	}
+}
+
+/************
+4. 1100px
+************/
+
+@media only screen and (max-width: 1100px)
+{
+	
+}
+
+/************
+5. 1024px
+************/
+
+@media only screen and (max-width: 1024px)
+{
+	
+}
+
+/************
+6. 991px
+************/
+
+@media only screen and (max-width: 991px)
+{
+	.header_content
+	{
+		width: 100%;
+		left: auto;
+	}
+	.main_nav
+	{
+		display: none;
+	}
+	.hamburger
+	{
+		display: flex !important;
+	}
+	.search_form_container
+	{
+		padding-left: 0;
+		padding-right: 0;
+	}
+	.artist_col
+	{
+		margin-top: 63px;
+	}
+	.featured_title h1
+	{
+		font-size: 56px;
+	}
+}
+
+/************
+7. 959px
+************/
+
+@media only screen and (max-width: 959px)
+{
+	
+}
+
+/************
+8. 880px
+************/
+
+@media only screen and (max-width: 880px)
+{
+	
+}
+
+/************
+9. 768px
+************/
+
+@media only screen and (max-width: 768px)
+{
+	
+}
+
+/************
+10. 767px
+************/
+
+@media only screen and (max-width: 767px)
+{
+	.search_form
+	{
+		height: auto;
+		padding-top: 38px;
+		padding-bottom: 37px;
+	}
+	.search_input
+	{
+		width: 100%;
+	}
+	.search_input
+	{
+		margin-bottom: 10px;
+	}
+	.letters
+	{
+		padding-left: 50px;
+		padding-right: 50px;
+	}
+	.artist_name h1 a
+	{
+		font-size: 48px;
+	}
+	.featured_artist .background_image
+	{
+		background-image: url(../images/featured_artist_2.jpg) !important;
+	}
+	.footer_social ul li
+	{
+		width: 40px;
+		height: 40px;
+	}
+	.footer_social ul li:not(:last-of-type)
+	{
+		margin-right: 7px;
+	}
+	.footer_social ul li a i
+	{
+		font-size: 16px;
+		line-height: 40px;
+	}
+}
+
+/************
+11. 575px
+************/
+
+@media only screen and (max-width: 575px)
+{
+	.button
+	{
+		width: 160px;
+		height: 48px;
+		border-radius: 17px;
+	}
+	.button a
+	{
+		font-size: 12px;
+		line-height: 48px;
+	}
+	.button span
+	{
+		line-height: 48px;
+		font-size: 12px;
+	}
+	.section_title h1
+	{
+		font-size: 36px;
+	}
+	p
+	{
+		font-size: 14px;
+	}
+	.header_content
+	{
+		height: 75px;
+	}
+	.log_reg
+	{
+		top: 50%;
+		-webkit-transform: translateY(-50%);
+		-moz-transform: translateY(-50%);
+		-ms-transform: translateY(-50%);
+		-o-transform: translateY(-50%);
+		transform: translateY(-50%);
+	}
+	.home
+	{
+		height: 350px;
+	}
+	.home_title
+	{
+		font-size: 36px;
+	}
+	.search_input
+	{
+		height: 48px;
+		border-radius: 17px;
+		font-size: 14px;
+		padding-left: 20px;
+	}
+	.search_input::-webkit-input-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.search_input:-moz-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.search_input::-moz-placeholder
+	{
+		font-size: 14px !important;
+	} 
+	.search_input:-ms-input-placeholder
+	{ 
+		font-size: 14px !important;
+	}
+	.search_input::input-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.menu_close
+	{
+		right: 30px;
+	}
+	.log_reg ul li a
+	{
+		font-size: 16px;
+	}
+	.menu_nav ul li a
+	{
+		font-size: 30px;
+	}
+	.artist_name h1 a
+	{
+		font-size: 36px;
+	}
+	.song_content
+	{
+		padding-bottom: 110px;
+	}
+	.player_progress_box
+	{
+		width: 100%;
+	}
+	.jp-volume-controls
+	{
+		display: none;
+	}
+	.letters
+	{
+		padding-left: 15px;
+		padding-right: 15px;
+	}
+	.featured_artist_content
+	{
+	    padding-top: 140px;
+	    padding-bottom: 150px;
+	}
+	.featured_title h1
+	{
+		font-size: 36px;
+	}
+	.newsletter_input
+	{
+		height: 48px;
+		border-radius: 17px;
+		width: calc(100% - 167px);
+		font-size: 14px;
+		padding-left: 20px;
+	}
+	.newsletter_input::-webkit-input-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.newsletter_input:-moz-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.newsletter_input::-moz-placeholder
+	{
+		font-size: 14px !important;
+	} 
+	.newsletter_input:-ms-input-placeholder
+	{ 
+		font-size: 14px !important;
+	}
+	.newsletter_input::input-placeholder
+	{
+		font-size: 14px !important;
+	}
+}
+
+/************
+11. 539px
+************/
+
+@media only screen and (max-width: 539px)
+{
+	
+}
+
+/************
+12. 480px
+************/
+
+@media only screen and (max-width: 480px)
+{
+	
+}
+
+/************
+13. 479px
+************/
+
+@media only screen and (max-width: 479px)
+{
+	
+}
+
+/************
+14. 400px
+************/
+
+@media only screen and (max-width: 400px)
+{
+	
+}

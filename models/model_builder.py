@@ -158,10 +158,10 @@ class ModelBuilder:
         :return: model
         '''
         model = Sequential()
-        # model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
         model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
         model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(64, return_sequences=True)))
+        model.add(Bidirectional(LSTM(128, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(TimeDistributed(Dense(output_dim)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))

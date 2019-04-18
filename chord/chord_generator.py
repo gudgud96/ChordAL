@@ -6,7 +6,6 @@ Purpose:    Train and generate chord sequence from chord sequence dataset.
 
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
 from keras.layers import TimeDistributed, Embedding, Bidirectional, LSTM
 from music21 import *
@@ -20,6 +19,7 @@ import os
 
 
 # Configurable variables
+print(os.path.dirname(os.path.abspath(__file__)))
 CHORD_SEQUENCE_FILE = "../chord/chord_sequence_all_no_repeat.txt"
 CHORD_SEQUENCE_FILE_SHIFTED = "../chord/chord_sequence_all_no_repeat_normalized.txt"
 TT_SPLIT = 0.8  # percentage of train / test
@@ -137,8 +137,8 @@ class ChordGenerator:
         print('Test loss:', scores[0])
         print('Test accuracy:', scores[1])
 
-        plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
-        plt.savefig('training_graph.png')
+        # plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
+        # plt.savefig('training_graph.png')
         return model
 
     def __generate_chord_from_seed(self, example_chord, model, num_of_chords=32, is_one_hot=False):

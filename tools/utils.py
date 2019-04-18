@@ -1,3 +1,7 @@
+import sys,os
+sys.path.append('..')
+print(sys.path)
+
 import pickle
 import numpy as np
 import pretty_midi

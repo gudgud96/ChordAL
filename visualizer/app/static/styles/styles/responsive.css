@@ -1,0 +1,529 @@
+@charset "utf-8";
+/* CSS Document */
+
+/******************************
+
+[Table of Contents]
+
+1. 1600px
+2. 1440px
+3. 1280px
+4. 1199px
+5. 1024px
+6. 991px
+7. 959px
+8. 880px
+9. 768px
+10. 767px
+11. 539px
+12. 479px
+13. 400px
+
+******************************/
+
+/************
+1. 1600px
+************/
+
+@media only screen and (max-width: 1600px)
+{
+	
+}
+
+/************
+2. 1440px
+************/
+
+@media only screen and (max-width: 1440px)
+{
+	
+}
+
+/************
+3. 1380px
+************/
+
+@media only screen and (max-width: 1380px)
+{
+	
+}
+
+/************
+3. 1280px
+************/
+
+@media only screen and (max-width: 1280px)
+{
+	
+}
+
+/************
+4. 1199px
+************/
+
+@media only screen and (max-width: 1199px)
+{
+	.main_nav ul li:not(:last-of-type)
+	{
+		margin-right: 40px;
+	}
+	.scroll_down
+	{
+		left: auto;
+		right: 50px;
+		-webkit-transform: none;
+		-moz-transform: none;
+		-ms-transform: none;
+		-o-transform: none;
+		transform: none;
+	}
+	.app_image
+	{
+		-webkit-transform: translateX(-30px);
+		-moz-transform: translateX(-30px);
+		-ms-transform: translateX(-30px);
+		-o-transform: translateX(-30px);
+		transform: translateX(-30px);
+	}
+	.app_content
+	{
+		-webkit-transform: translateX(20px);
+		-moz-transform: translateX(20px);
+		-ms-transform: translateX(20px);
+		-o-transform: translateX(20px);
+		transform: translateX(20px);
+	}
+	.nl_col
+	{
+		margin-top: 40px;
+	}
+	.newsletter_form_container
+	{
+		padding-left: 0;
+	}
+}
+
+/************
+4. 1100px
+************/
+
+@media only screen and (max-width: 1100px)
+{
+	
+}
+
+/************
+5. 1024px
+************/
+
+@media only screen and (max-width: 1024px)
+{
+	
+}
+
+/************
+6. 991px
+************/
+
+@media only screen and (max-width: 991px)
+{
+	.header_content
+	{
+		width: 100%;
+		left: auto;
+	}
+	.main_nav
+	{
+		display: none;
+	}
+	.hamburger
+	{
+		display: flex !important;
+	}
+	.home_title h1
+	{
+		font-size: 72px;
+	}
+	.tickets_form_container
+	{
+		padding-left: 0;
+		padding-right: 0;
+	}
+	.home_slider_nav
+	{
+		right: 30px;
+	}
+	.home_social_text
+	{
+		padding-right: 120px;
+	}
+	.home_social_text::after
+	{
+		display: block;
+		position: absolute;
+		top: 5px;
+		right: 0;
+		width: 112px;
+		height: 1px;
+		background: rgba(255,255,255,0.63);
+		content: '';
+	}
+	.player_bars
+	{
+		width: 100%;
+	}
+	.player_controls_box
+	{
+		width: 100%;
+		padding-right: 0;
+	}
+	.time_controls
+	{
+		width: 100%;
+	}
+	.song_image
+	{
+		margin-right: 30px;
+	}
+	.player_progress_box
+	{
+		width: calc(100% - 150px);
+		margin-top: 30px;
+	}
+	.jp-volume-controls
+	{
+		width: 150px;
+		padding-left: 30px;
+		margin-top: 30px;
+	}
+	.mute_button
+	{
+		left: 30px;
+	}
+	.tours_col
+	{
+		margin-top: 90px;
+	}
+	.app_col
+	{
+		margin-top: 90px;
+	}
+	.app_image
+	{
+		width: 100%;
+		-webkit-transform: none;
+		-moz-transform: none;
+		-ms-transform: none;
+		-o-transform: none;
+		transform: none;
+	}
+	.app_content
+	{
+		-webkit-transform: none;
+		-moz-transform: none;
+		-ms-transform: none;
+		-o-transform: none;
+		transform: none;
+	}
+	.featured_list ul li
+	{
+		width: calc(100% / 2);
+	}
+}
+
+/************
+7. 959px
+************/
+
+@media only screen and (max-width: 959px)
+{
+	
+}
+
+/************
+8. 880px
+************/
+
+@media only screen and (max-width: 880px)
+{
+	
+}
+
+/************
+9. 768px
+************/
+
+@media only screen and (max-width: 768px)
+{
+	
+}
+
+/************
+10. 767px
+************/
+
+@media only screen and (max-width: 767px)
+{
+	.home_title h1
+	{
+		font-size: 56px;
+	}
+	.home_title.islive::after
+	{
+		font-size: 12px;
+		width: 50px;
+		height: 50px;
+		line-height: 55px;
+		right: -34px;
+	}
+	.home_title
+	{
+		padding-top: 46px;
+	}
+	.tickets_form_inputs
+	{
+		width: 100%;
+	}
+	.tickets_form_button
+	{
+		width: 170px;
+		font-size: 12px;
+		margin-left: auto;
+		margin-right: auto;
+		margin-top: 13px;
+	}
+	.featured_list ul li
+	{
+		width: 100%;
+	}
+	.footer_social ul li
+	{
+		width: 40px;
+		height: 40px;
+	}
+	.footer_social ul li:not(:last-of-type)
+	{
+		margin-right: 7px;
+	}
+	.footer_social ul li a i
+	{
+		font-size: 16px;
+		line-height: 40px;
+	}
+}
+
+/************
+11. 575px
+************/
+
+@media only screen and (max-width: 575px)
+{
+	.button
+	{
+		width: 160px;
+		height: 48px;
+		border-radius: 17px;
+	}
+	.button a
+	{
+		font-size: 12px;
+		line-height: 48px;
+	}
+	.button span
+	{
+		line-height: 48px;
+		font-size: 12px;
+	}
+	.section_title h1
+	{
+		font-size: 36px;
+	}
+	p
+	{
+		font-size: 14px;
+	}
+	.header_content
+	{
+		height: 75px;
+	}
+	.log_reg
+	{
+		top: 50%;
+		-webkit-transform: translateY(-50%);
+		-moz-transform: translateY(-50%);
+		-ms-transform: translateY(-50%);
+		-o-transform: translateY(-50%);
+		transform: translateY(-50%);
+	}
+	.home
+	{
+		height: 100vh;
+	}
+	.menu_close
+	{
+		right: 30px;
+	}
+	.scroll_down
+	{
+		right: auto;
+		left: 50%;
+		-webkit-transform: translateX(-50%);
+		-moz-transform: translateX(-50%);
+		-ms-transform: translateX(-50%);
+		-o-transform: translateX(-50%);
+		transform: translateX(-50%);
+	}
+	.log_reg ul li a
+	{
+		font-size: 16px;
+	}
+	.menu_nav ul li a
+	{
+		font-size: 30px;
+	}
+	.home_title h1
+	{
+		font-size: 48px;
+	}
+	.tickets_form_input
+	{
+		height: 48px;
+		padding-left: 25px;
+		border-radius: 18px;
+	}
+	.tickets_form_input::-webkit-input-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.tickets_form_input:-moz-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.tickets_form_input::-moz-placeholder
+	{
+		font-size: 14px !important;
+	} 
+	.tickets_form_input:-ms-input-placeholder
+	{ 
+		font-size: 14px !important;
+	}
+	.tickets_form_input::input-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.custom_dropdown_selected
+	{
+		font-size: 14px !important;
+		line-height: 48px;
+	}
+	.tickets_form_button
+	{
+		
+	}
+	.home_slider_nav,
+	.home_social
+	{
+		display: none;
+	}
+	.home_social
+	{
+		left: 15px;
+	}
+	.home_social_text
+	{
+		font-size: 14px;
+	}
+	.home_social_text::after
+	{
+		top: 2px;
+	}
+	.home_social_list ul li:not(:last-of-type)
+	{
+		margin-right: 8px;
+	}
+	.song_content
+	{
+		padding-bottom: 110px;
+	}
+	.player_progress_box
+	{
+		width: 100%;
+	}
+	.jp-volume-controls
+	{
+		display: none;
+	}
+	.tour_date
+	{
+		font-size: 20px;
+	}
+	.tour_name a,
+	.tour_location
+	{
+		font-size: 14px;
+	}
+	.newsletter_input
+	{
+		height: 48px;
+		border-radius: 17px;
+		width: calc(100% - 167px);
+		font-size: 14px;
+		padding-left: 20px;
+	}
+	.newsletter_input::-webkit-input-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.newsletter_input:-moz-placeholder
+	{
+		font-size: 14px !important;
+	}
+	.newsletter_input::-moz-placeholder
+	{
+		font-size: 14px !important;
+	} 
+	.newsletter_input:-ms-input-placeholder
+	{ 
+		font-size: 14px !important;
+	}
+	.newsletter_input::input-placeholder
+	{
+		font-size: 14px !important;
+	}
+}
+
+/************
+11. 539px
+************/
+
+@media only screen and (max-width: 539px)
+{
+	
+}
+
+/************
+12. 480px
+************/
+
+@media only screen and (max-width: 480px)
+{
+	
+}
+
+/************
+13. 479px
+************/
+
+@media only screen and (max-width: 479px)
+{
+	
+}
+
+/************
+14. 400px
+************/
+
+@media only screen and (max-width: 400px)
+{
+	
+}

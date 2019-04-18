@@ -5,13 +5,13 @@ Purpose:    Chord to note generator.
 '''
 import pickle
 import sys,os
-
-sys.path.append('/'.join(os.getcwd().split('/')[:-1]))
+sys.path.append('..')
+print(sys.path)
 
 from keras import backend as K
-from utils import piano_roll_to_pretty_midi, chord_index_to_piano_roll, convert_chord_indices_to_embeddings
 from dataset.data_pipeline import DataPipeline
 from models.model_builder import ModelBuilder
+from tools.utils import piano_roll_to_pretty_midi, chord_index_to_piano_roll, convert_chord_indices_to_embeddings
 import numpy as np
 
 
@@ -85,7 +85,7 @@ class ChordToNoteGenerator:
 
         elif model_name == 'bidem':
             self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
-            weights_path = '../note/active_models/bidem_weights_3.h5'
+            weights_path = '../note/active_models/bidem_weights_500.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 

@@ -1,3 +1,9 @@
+import sys,os
+print(os.getcwd())
+sys.path.append('\\'.join(os.getcwd().split('\\')[:-1]))
+print(sys.path)
+
+
 import datetime
 
 from app import app
@@ -21,7 +27,7 @@ def play():
     # Get chords and bar numbers from user
     print("in play...")
     chords = request.form['chords']
-    model_name = "bidem_preload"            # fix the model to bidirectional embeddings for now
+    model_name = "bidem"            # bidem or bidem_preload. bidem sounds better for now
     style = request.form['style'].lower()
     bar_number = 32 if '32' in request.form['bar_number'] else 16
     if style == '':
@@ -63,7 +69,6 @@ def play():
 def style():
     style = request.form['style']
     songs = os.listdir('app/static')
-    songs.remove('human-song')
     songs.remove('styles')
     song = songs[-1]
     melody_file = 'app/static/{}/melody.mid'.format(song)
@@ -72,7 +77,6 @@ def style():
     song_styling(melody_file, chord_file, song_file, style=style.lower())
 
     songs = os.listdir('app/static')
-    songs.remove('human-song')
     songs.remove('styles')
     song = songs[-1]
     # print(songs)

@@ -9,6 +9,7 @@
 *.pyc
 .mid
 .npy
+venv/
 
 # Dataset Files
 dataset/McGill-BillBoard
@@ -30,9 +31,6 @@ note/collections/
 
 # Showcase
 showcase/
-
-# Visualizer generations
-visualizer/app/static/
 
 !architecture.png
 !logo-small.png

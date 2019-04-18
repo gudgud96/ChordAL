@@ -17,11 +17,11 @@ from note.chord_to_note_generator import ChordToNoteGenerator
 from dataset.data_pipeline import MAX_NUM_OF_BARS, FS, DataPipeline
 import pretty_midi
 import numpy as np
-from utils import piano_roll_to_pretty_midi, merge_melody_with_chords
+from tools.utils import piano_roll_to_pretty_midi, merge_melody_with_chords
 from mido import MidiFile
 from music21 import scale
 
-MODEL_NAME = "bidem_preload"
+MODEL_NAME = "bidem"
 MODELS_TO_NOTE = ["attention", "bidem", "bidem_preload", "bidem_preload", "bidem_regularized"]
 
 
