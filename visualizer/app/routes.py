@@ -1,8 +1,5 @@
 import sys,os
-print(os.getcwd())
 sys.path.append('\\'.join(os.getcwd().split('\\')[:-1]))
-print(sys.path)
-
 
 import datetime
 
