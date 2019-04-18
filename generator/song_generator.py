@@ -21,7 +21,7 @@ from utils import piano_roll_to_pretty_midi, merge_melody_with_chords
 from mido import MidiFile
 from music21 import scale
 
-MODEL_NAME = "bidem"
+MODEL_NAME = "bidem_preload"
 MODELS_TO_NOTE = ["attention", "bidem", "bidem_preload", "bidem_preload", "bidem_regularized"]
 
 
@@ -145,7 +145,6 @@ def generate_song(chords=None, bar_number=16, melody_instrument=0, chord_instrum
     # 6. Post processing - merging, changing instruments, etc.
     song_styling('melody.mid', 'chords.mid', 'song.mid', melody_instrument=melody_instrument,
                  chord_instrument=chord_instrument, style=style, chords=chords)
-    print('Song generation done.')
 
 
 def melody_tuning(melody):

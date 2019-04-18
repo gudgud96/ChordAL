@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>ChordAL - Chord-based Composer</title>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="description" content="ChordAL - Chord-based composer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="static/styles/styles/bootstrap-4.1.2/bootstrap.min.css">
+<link href="static/styles/plugins/font-awesome-4.7.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+<link rel="stylesheet" type="text/css" href="static/styles/plugins/OwlCarousel2-2.3.4/owl.carousel.css">
+<link rel="stylesheet" type="text/css" href="static/styles/plugins/OwlCarousel2-2.3.4/owl.theme.default.css">
+<link rel="stylesheet" type="text/css" href="static/styles/plugins/OwlCarousel2-2.3.4/animate.css">
+<link rel="stylesheet" type="text/css" href="static/styles/styles/main_styles.css">
+<link rel="stylesheet" type="text/css" href="static/styles/styles/responsive.css">
+</head>
+<body>
+
+<div class="super_container">
+	
+	<!-- Header -->
+
+	<header class="header">
+		<div class="container">
+			<div class="row">
+				<div class="col">
+					<div class="header_content d-flex flex-row align-items-center justify-content-center">
+
+						<!-- Logo -->
+						<div class="logo">
+							<a href="#" class="d-flex flex-row align-items-end justify-content-start">
+								<span class="logo_bars d-flex flex-row align-items-end justify-content-between"><span></span><span></span><span></span><span></span><span></span></span>
+								<span class="logo_text">ChordAL</span>
+							</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<!-- Home -->
+
+	<div class="home">
+		
+		<!-- Home Slider -->
+		<div class="home_slider_container">
+			<div class="owl-carousel owl-theme home_slider">
+				
+				<!-- Slide -->
+				<div class="slide">
+					<div class="background_image" style="background-image:url(static/styles/images/index.jpg)"></div>
+					<div class="home_container">
+						<div class="container">
+							<div class="row">
+								<div class="col">
+									<div class="home_content">
+										<div class="home_title_container text-center">
+											<div class="home_title text-center"><h2>Create music from <span>chords.</span></h2></div>
+										</div>
+										<div class="tickets_form_container text-center">
+											<form action="/play" method="post" class="tickets_form">
+												<p style="color: #ffffff;">Input your preferred chord progression, number of bars and style. <br>A 16-bar or 32-bar music with melody and accompaniment will be generated. </p>
+												<p style="color: #ffffff;">For chords, "d+" - D major, "b-" - B minor, "f#-" - F# minor, "ab+" - Ab major.<br>Separate the chords with commas.</p>
+												<div class="d-flex flex-md-row flex-column align-items-start justify-content-md-between justify-content-start">
+													<div class="tickets_form_inputs d-flex flex-row align-items-start justify-content-center">
+														<input type="text"  name="chords" class="tickets_form_input" placeholder="d+,a+,b-,f#-">
+													</div>
+												</div>
+
+												<div class="d-flex flex-md-row flex-column align-items-start justify-content-md-between justify-content-start">
+													<div class="tickets_form_inputs d-flex flex-row align-items-start justify-content-between">
+														  <select class="tickets_form_input form-control" name="bar_number" id="bar_number">
+															<option>16-bar</option>
+															<option>32-bar</option>
+														  </select>
+													</div>
+												</div>
+
+												<div class="d-flex flex-md-row flex-column align-items-start justify-content-md-between justify-content-start">
+													<div class="tickets_form_inputs d-flex flex-row align-items-start justify-content-between">
+														  <select class="tickets_form_input form-control" name="style" id="style">
+															<option value="Strings">Strings</option>
+															<option value="Organ">Organ</option>
+															<option value="Church">Church</option>
+															<option value="Techno">Techno</option>
+															<option value="Brass">Brass</option>
+															<option value="Flute">Flute</option>
+														  </select>
+													</div>
+												</div>
+
+<!--												<div class="d-flex flex-md-row flex-column align-items-start justify-content-center text-center">-->
+													<button type="submit" class="tickets_form_button button" onclick="$('.progress').css('visibility', 'visible');$('.progress-bar').animate({width: '90%' }, 6000);"><span>Generate</span></button>
+<!--												</div>-->
+											</form>
+
+											<div class="col-xs-12 col-sm-12 progress-container">
+												<div class="progress progress-striped" style="margin-top:25px; visibility: hidden;">
+													<div class="progress-bar progress-bar-success" style="width:0%;">Generating...</div>
+												</div>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+		</div>
+		</div>
+	</div>
+
+	<!-- Footer -->
+
+	<footer class="footer">
+		<div class="background_image" style="background-image:url(static/styles/images/footer.jpg)"></div>
+		<div class="footer_content">
+			<div class="container">
+				<div class="row">
+					<div class="col text-center">
+
+						<!-- Logo -->
+						<div class="logo">
+							<a href="#" class="d-flex flex-row align-items-end justify-content-start">
+								<span class="logo_bars d-flex flex-row align-items-end justify-content-between"><span></span><span></span><span></span><span></span><span></span></span>
+								<span class="logo_text">ChordAL</span>
+							</a>
+						</div>
+						<p style="color: #ffffff;">Chord-Based Learning Framework for Symbolic Music Generation using Neural Networks</p>
+
+
+						<!-- Footer Social -->
+						<div class="footer_social">
+							<ul class="d-flex flex-row align-items-center justify-content-center">
+								<li><a href="https://soundcloud.com/hord-hord-basedomposer"><i class="fa fa-soundcloud" aria-hidden="true"></i></a></li>
+								<li><a href="https://github.com/gudgud96/ChordAL"><i class="fa fa-github" aria-hidden="true"></i></a></li>
+							</ul>
+						</div>
+
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="footer_bar">
+			<div class="container">
+				<div class="row">
+					<div class="col">
+						<div class="copyright text-center"><!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. -->
+Copyright &copy;<script>document.write(new Date().getFullYear());</script> All rights reserved | This template is made with <i class="fa fa-heart-o" aria-hidden="true"></i> by <a href="https://colorlib.com" target="_blank">Colorlib</a>
+<!-- Link back to Colorlib can't be removed. Template is licensed under CC BY 3.0. --></div>
+					</div>
+				</div>
+			</div>
+		</div>
+			
+	</footer>
+</div>
+<script type='text/javascript'>
+    console.log("test test");
+    var barnum = document.getElementById("bar_number");
+
+    barnum.addEventListener("change", function() {
+        if(barnum.value == "32-bar")
+        {
+            console.log($('#style option[value="Techno"]'));
+            $('#style option[value="Techno"]').hide();
+        }
+        else if(barnum.value == "16-bar")
+        {
+            console.log($('#style option[value=4]'));
+            $('#style option[value="Techno"]').show();
+        }
+    });
+
+</script>
+<script src="static/styles/js/jquery-3.3.1.min.js"></script>
+<script src="static/styles/styles/bootstrap-4.1.2/popper.js"></script>
+<script src="static/styles/styles/bootstrap-4.1.2/bootstrap.min.js"></script>
+<script src="static/styles/plugins/greensock/TweenMax.min.js"></script>
+<script src="static/styles/plugins/greensock/TimelineMax.min.js"></script>
+<script src="static/styles/plugins/scrollmagic/ScrollMagic.min.js"></script>
+<script src="static/styles/plugins/greensock/animation.gsap.min.js"></script>
+<script src="static/styles/plugins/greensock/ScrollToPlugin.min.js"></script>
+<script src="static/styles/plugins/OwlCarousel2-2.3.4/owl.carousel.js"></script>
+<script src="static/styles/plugins/jPlayer/jquery.jplayer.min.js"></script>
+<script src="static/styles/plugins/jPlayer/jplayer.playlist.min.js"></script>
+<script src="static/styles/plugins/easing/easing.js"></script>
+<script src="static/styles/plugins/progressbar/progressbar.min.js"></script>
+<script src="static/styles/plugins/parallax-js-master/parallax.min.js"></script>
+<script src="static/styles/plugins/scrollTo/jquery.scrollTo.min.js"></script>
+<script src="static/styles/js/custom.js"></script>
+</body>
+</html>

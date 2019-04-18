@@ -9,13 +9,17 @@ Improvements needed:
 from keras import objectives
 from keras.models import Model, Sequential
 from keras.layers import Input, LSTM, Dense, Lambda, Dropout, TimeDistributed, Activation, Conv2D, MaxPooling2D, \
-    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional, dot, concatenate
+    Flatten, Convolution2D, GRU, LeakyReLU, CuDNNGRU, Embedding, Bidirectional, dot, concatenate, CuDNNLSTM
+from keras.regularizers import l1, l2
 from keras import backend as K
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import numpy as np
+from keras.utils import to_categorical
 
 from chord.chord_generator import NUM_CLASSES
 from models.keras_attention_wrapper import AttentionDecoder
+from keras.optimizers import Adam
 
 
 class ModelBuilder:
@@ -28,7 +32,7 @@ class ModelBuilder:
     def build_seq2seq_model(self, num_encoder_tokens, num_decoder_tokens, latent_dim):
 
         # Define an input sequence and process it.
-        encoder_inputs = Input(shape=(1200, num_encoder_tokens))
+        encoder_inputs = Input(shape=(None, num_encoder_tokens))
         encoder = LSTM(latent_dim, return_state=True)
         encoder_outputs, state_h, state_c = encoder(encoder_inputs)
 
@@ -36,7 +40,7 @@ class ModelBuilder:
         encoder_states = [state_h, state_c]
 
         # Set up the decoder, using `encoder_states` as initial state.
-        decoder_inputs = Input(shape=(1200, num_decoder_tokens))
+        decoder_inputs = Input(shape=(None, num_decoder_tokens))
         # We set up our decoder to return full output sequences,
         # and to return internal states as well. We don't use the
         # return states in the training model, but we will use them in inference.
@@ -129,8 +133,8 @@ class ModelBuilder:
             output_dim = input_dim[-1]
         model = Sequential()
         # added reset after flag for CuDNN compatibility purpose
-        model.add(LSTM(64, return_sequences=True, input_shape=input_dim))
-        model.add(LSTM(128, return_sequences=True))
+        model.add(CuDNNLSTM(64, return_sequences=True, input_shape=input_dim))
+        model.add(CuDNNLSTM(128, return_sequences=True))
         model.add(Dropout(0.8))
         # model.add(TimeDistributed(Dense(input_dim[-2] * input_dim[-3])))
         model.add(TimeDistributed(Dense(output_dim)))
@@ -139,10 +143,10 @@ class ModelBuilder:
 
     def build_bidirectional_rnn_model_no_embeddings(self, input_dim, output_dim=128):
         model = Sequential()
-        model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
-        model.add(Dropout(0.2))
-        model.add(Bidirectional(LSTM(64, return_sequences=True)))
-        model.add(Dropout(0.2))
+        model.add(Bidirectional(LSTM(64, bias_regularizer=l2(0.01), recurrent_regularizer=l2(0.01), return_sequences=True), input_shape=input_dim))
+        model.add(Dropout(0.4))
+        model.add(Bidirectional(LSTM(64, bias_regularizer=l2(0.01), recurrent_regularizer=l2(0.01), return_sequences=True)))
+        model.add(Dropout(0.4))
         model.add(TimeDistributed(Dense(output_dim)))  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
         return model
@@ -154,15 +158,10 @@ class ModelBuilder:
         :return: model
         '''
         model = Sequential()
-        model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
+        # model.add(Embedding(NUM_CLASSES, 32, input_shape=input_dim))     # NUM_CLASSES is the total number of chord IDs
         model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
-        #
-        # model.add(Bidirectional(LSTM(64, return_sequences=True), input_shape=input_dim))
-
         model.add(Dropout(0.2))
-
-        # model.add(Bidirectional(LSTM(64, return_sequences=True)))
-        model.add(Bidirectional(LSTM(128, return_sequences=True)))
+        model.add(Bidirectional(LSTM(64, return_sequences=True)))
         model.add(Dropout(0.2))
         model.add(TimeDistributed(Dense(output_dim)))                  # 128 notes to output, multi-class
         model.add(Activation('softmax'))
@@ -244,20 +243,84 @@ class ModelBuilder:
             "binary_crossentropy": ['binary_accuracy'],
             "categorical_crossentropy": ['categorical_accuracy']
         }
-        model.compile(loss=loss, optimizer='adam', metrics=loss_metrics_dict[loss])
-        history = model.fit(self.X_train, self.Y_train, epochs=epochs)
+        optimizer = Adam(clipnorm=1.0)
+        model.compile(loss=loss, optimizer=optimizer, metrics=loss_metrics_dict[loss])
+        history = model.fit(self.X_train, self.Y_train, epochs=epochs, validation_data=(self.X_test, self.Y_test))
 
         scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
         print('Train loss:', scores[0])
         print('Train accuracy:', scores[1])
-        scores = model.evaluate(self.X_test, self.Y_test, verbose=True)
-        print('Test loss:', scores[0])
-        print('Test accuracy:', scores[1])
+        scores_2 = model.evaluate(self.X_test, self.Y_test, verbose=True)
+        print('Test loss:', scores_2[0])
+        print('Test accuracy:', scores_2[1])
 
         plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
-        plt.show()
+        plt.plot(range(len(history.history['val_loss'])), history.history['val_loss'], label='validation loss')
+
+        plt.savefig('loss_train_test.png')
+        open('train_test_accuracy.txt', 'w+').write(
+            'Train acc: {} Test acc: {} Train_loss: {} Test_loss: {}'.format(scores[1],
+                                                                             scores_2[1],
+                                                                             scores[0],
+                                                                             scores_2[0]))
 
         return model
+
+    def train_with_generator(self, model, epochs, loss='mean_squared_error'):
+
+        # generate embeddings and one-hot on the fly
+        from utils import convert_chord_indices_to_embeddings
+
+        def generate_training_data():
+            while 1:
+                for i in range(int(len(self.X_train) * 0.9), len(self.X_train)):
+                    input_chord, output_note = self.X_test[i], self.Y_test[i]
+                    input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
+                    output_note = to_categorical(output_note, num_classes=128)
+                    yield (np.expand_dims(input_chord, axis=0),
+                           np.expand_dims(output_note, axis=0))
+
+        def generate_validation_data():
+            while 1:
+                for i in range(int(len(self.X_train) * 0.9), len(self.X_train)):
+                    input_chord, output_note = self.X_test[i], self.Y_test[i]
+                    input_chord = np.array(convert_chord_indices_to_embeddings(input_chord))
+                    output_note = to_categorical(output_note, num_classes=128)
+                    yield (np.expand_dims(input_chord, axis=0),
+                           np.expand_dims(output_note, axis=0))
+
+        print("Train with generator...")
+        print(model.summary())
+        loss_metrics_dict = {
+            "mean_squared_error": ['accuracy'],
+            "binary_crossentropy": ['binary_accuracy'],
+            "categorical_crossentropy": ['categorical_accuracy']
+        }
+        optimizer = Adam(clipnorm=1.0)
+        model.compile(loss=loss, optimizer=optimizer, metrics=loss_metrics_dict[loss])
+        history = model.fit_generator(generate_training_data(),
+                                      validation_data=generate_validation_data(),
+                                      validation_steps=1,
+                                      steps_per_epoch=1458, epochs=epochs)
+        scores = model.evaluate(self.X_train, self.Y_train, verbose=True)
+        print('Train loss:', scores[0])
+        print('Train accuracy:', scores[1])
+        scores_2 = model.evaluate(self.X_test, self.Y_test, verbose=True)
+        print('Test loss:', scores_2[0])
+        print('Test accuracy:', scores_2[1])
+
+        plt.plot(range(len(history.history['loss'])), history.history['loss'], label='train loss')
+        plt.plot(range(len(history.history['val_loss'])), history.history['val_loss'], label='validation loss')
+
+        plt.savefig('loss_train_test.png')
+        open('train_test_accuracy.txt', 'w+').write(
+            'Train acc: {} Test acc: {} Train_loss: {} Test_loss: {}'.format(scores[1],
+                                                                             scores_2[1],
+                                                                             scores[0],
+                                                                             scores_2[0]))
+
+        return model
+
 
 def sampling(args):
     """

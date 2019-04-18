@@ -85,7 +85,7 @@ class ChordToNoteGenerator:
 
         elif model_name == 'bidem':
             self.model = mb.build_bidirectional_rnn_model(input_dim=(1200,))
-            weights_path = '../note/active_models/bidem_weights_500.h5'
+            weights_path = '../note/active_models/bidem_weights_3.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
@@ -102,8 +102,8 @@ class ChordToNoteGenerator:
             self.model.load_weights(weights_path)
 
         elif model_name == 'bidem_preload':
-            self.model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=(1200, 32))
-            weights_path = '../note/active_models/bidirectional_embedding_preload.h5'
+            self.model = mb.build_bidirectional_rnn_model_no_embeddings(input_dim=(None, 32))
+            weights_path = '../note/active_models/bidirectional_embedding_preload_100.h5'
             print('Loading ' + weights_path + '...')
             self.model.load_weights(weights_path)
 
@@ -120,6 +120,7 @@ class ChordToNoteGenerator:
         :return: None. Write Midi out as melody.mid.
         '''
         # Preprocessing
+        print(self.model_name)
         if self.model_name == "bidem_preload":
             chords = convert_chord_indices_to_embeddings(chords)
         elif self.model_name == "bidem_regularized":
