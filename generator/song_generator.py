@@ -313,7 +313,6 @@ def song_styling(melody_file, chord_file, song_file, melody_instrument=0, chord_
 
 def add_drum_beats(song_file, beat_style=1):
     # choose beat style
-    print(os.getcwd())
     if beat_style == 1:
         drum_mid = MidiFile('../generator/Alone.mid')
 

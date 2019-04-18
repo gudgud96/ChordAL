@@ -6,7 +6,6 @@ Purpose:    Chord to note generator.
 import pickle
 import sys,os
 sys.path.append('..')
-print(sys.path)
 
 from keras import backend as K
 from dataset.data_pipeline import DataPipeline

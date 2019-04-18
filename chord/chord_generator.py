@@ -19,7 +19,6 @@ import os
 
 
 # Configurable variables
-print(os.path.dirname(os.path.abspath(__file__)))
 CHORD_SEQUENCE_FILE = "../chord/chord_sequence_all_no_repeat.txt"
 CHORD_SEQUENCE_FILE_SHIFTED = "../chord/chord_sequence_all_no_repeat_normalized.txt"
 TT_SPLIT = 0.8  # percentage of train / test

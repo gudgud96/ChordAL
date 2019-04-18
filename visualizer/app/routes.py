@@ -25,7 +25,6 @@ def index():
 @app.route("/play", methods=['POST'])
 def play():
     # Get chords and bar numbers from user
-    print("in play...")
     chords = request.form['chords']
     model_name = "bidem"            # bidem or bidem_preload. bidem sounds better for now
     style = request.form['style'].lower()
