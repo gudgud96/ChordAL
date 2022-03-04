@@ -39,6 +39,8 @@ Each folder is structured to be a component of ChordAL's system:
 - [pretty_midi](https://github.com/craffel/pretty-midi)
 - [mido](https://github.com/mido/mido)
 
+*P.S.:* According to the installation versions of dependencies, it is recommended that the python version is the latest **Python 3.6**(3.6.8 maybe?)
+
 ### Try ChordAL yourself!
 ```bibtex
 pip install -r requirements.txt
