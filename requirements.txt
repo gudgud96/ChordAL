@@ -1,4 +1,5 @@
 numpy==1.15.4
+h5py==2.10.0
 Keras==2.2.4
 mido==1.2.6
 pandas==0.22.0
